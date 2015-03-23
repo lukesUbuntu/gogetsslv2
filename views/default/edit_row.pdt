@@ -1,0 +1,48 @@
+		<?php
+		$this->Widget->clear();
+		$this->Widget->create($this->_("GoGetSSLv2.edit_row.box_title", true));
+		?>
+		<div class="inner">
+			<?php
+			$this->Form->create();
+			?>
+			<div class="title_row first">
+				<h3><?php $this->_("GoGetSSLv2.edit_row.basic_title");?></h3>
+			</div>
+			<div class="pad">
+				<ul>
+					<li>
+						<?php
+						$this->Form->label($this->_("GoGetSSLv2.row_meta.gogetssl_name", true), "gogetssl_name");
+						$this->Form->fieldText("gogetssl_name", $this->Html->ifSet($vars->gogetssl_name), array('id' => "gogetssl_name"));
+						?>
+					</li>
+					<li>
+						<?php
+						$this->Form->label($this->_("GoGetSSLv2.row_meta.api_username", true), "api_username");
+						$this->Form->fieldText("api_username", $this->Html->ifSet($vars->api_username), array('id' => "api_username"));
+						?>
+					</li>
+					<li>
+						<?php
+						$this->Form->label($this->_("GoGetSSLv2.row_meta.api_password", true), "api_password");
+						$this->Form->fieldText("api_password", $this->Html->ifSet($vars->api_password), array('id' => "api_password"));
+						?>
+					</li>
+					<li>
+						<?php
+						$this->Form->fieldCheckbox("sandbox", "true", $this->Html->ifSet($vars->sandbox) == "true", array('id' => "sandbox"));
+						$this->Form->label($this->_("GoGetSSLv2.row_meta.sandbox", true), "sandbox", array('class' => "inline"));
+						?>
+					</li>
+				</ul>
+			</div>
+			
+			<div class="button_row"><a class="btn_right submit" href="#"><?php $this->_("GoGetSSLv2.edit_row.add_btn");?></a></div>
+			<?php
+			$this->Form->end();
+			?>
+		</div>
+		<?php
+		$this->Widget->end();
+		?>

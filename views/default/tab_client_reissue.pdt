@@ -1,0 +1,141 @@
+    <style>
+        .notVisable {
+            display:none;
+        }
+    </style>
+	<?php
+	$this->Form->create($this->base_uri . "services/manage/" . $this->Html->ifSet($service_id) . "/tabClientReissue/",array('id' => 'reinstallCsrForm'));
+	?>
+
+
+    <!--- CSR INFO !--->
+    <div id="step_1" class="step_tab">
+        <div class="row panel-fix">
+            <div class="col-md-12">
+
+                <div id="csr_content" class="form-group">
+
+                    <div class="form-group">
+                        <?php
+                        $this->Form->label($this->_("GoGetSSLv2.service_field.gogetssl_csr", true), "gogetssl_csr");
+                        ?> or
+                        <a href="<?php echo $csr_install;?>"><span id="generate_csr" class="btn btn-info btn-xs">Generate New CSR</span></a>
+                        <?php
+                        $this->Form->fieldTextArea("gogetssl_csr", $this->Html->ifSet($csr_data), array('id'=>"gogetssl_csr", 'class'=>"form-control", 'rows'=>8));
+                        ?>
+                    </div>
+                    <div class="form-group">
+                        <?php
+                        $this->Form->label($this->_("GoGetSSLv2.service_field.gogetssl_webserver_type", true), "gogetssl_webserver_type");
+                        $this->Form->fieldSelect("gogetssl_webserver_type", $this->Html->ifSet($gogetssl_webserver_types), $this->Html->ifSet($vars->gogetssl_webserver_type), array('id'=>"gogetssl_webserver_type", 'class'=>"form-control"));
+                        ?>
+                    </div>
+                </div>
+
+
+                <!-- place holder for other methods !-->
+                <div id="other_methods_div" class="form-group">
+                    <?php
+                    $this->Form->label("Other Methods", "gogetssl_other_methods_label");
+                    //$this->Form->fieldSelect("gogetssl_approver_type", null, null, array('id'=>"gogetssl_other_methods", 'class'=>"form-control"));
+                    $this->Form->fieldSelect(
+                        "gogetssl_approver_type",
+                        $gogetssl_approver_type,
+                        null,
+                        array('id'=>"gogetssl_approver_type", 'class'=>"form-control")
+                    );
+                    ?>
+                    <!-- display http method !-->
+                    <div id="http_method" class="install_methods">
+                            <h3>Instructions</h3>
+                            Installing by http or https requires that you upload (FTP) a txt file to your webserver, it needs to be in the root path.
+
+                        <!-- step 1 !-->
+                        <h3>Step 1</h3>
+
+                            Create a text file and name it
+                            <pre id="http_method_filename" class="alert-info"></pre>
+                            then put the following inside the file
+                            <pre id="http_method_content"></pre>
+                        or you can
+                        <!--- wrap span into button for testing html5 download attribute !-->
+                        <a id="http_methods_download" href="#" download=""><span class="btn btn-info btn-xs">Download File</span></a>
+
+                        <h3>Step 2</h3>
+
+                        <span>
+                            Upload the text file to the root of
+                             <pre id="http_method_filename" class="alert-info"> <?php echo $gogetssl_csr_fqdn;?></pre>
+                            so that the file links to
+                            <span id="http_method_link"></span></span>
+
+
+                    </div>
+
+                    <div id="dns_method" class="install_methods">
+                            <h3>Instructions</h3>
+                            To Authorise create a CNAME record
+                        <pre class="form-control dns_method_cname"></pre>
+                        and point it to
+                        <pre class="alert-info dns_method_cname_point"></pre>
+
+
+
+                        <!-- step 1 !-->
+                        <h3>Bind9 Example</h3>
+                        <hr>
+
+
+                            <div class="alert alert-info" role="alert"><span class="dns_method_cname"></span>      IN      CNAME  <span class="dns_method_cname_point"></span></div>
+
+                        </hr>
+                        <h3>Cloudflare Example</h3>
+                        <code>
+                            <span class="pull-left btn btn-warning btn-xs">CNAME</span><span> <span class="dns_method_cname"></span> is an alias <span class="dns_method_cname_point"></span></span>
+                        </code>
+                        <hr>
+
+
+                        </hr>
+                    </div>
+                </div><!-- other methods end !-->
+
+                <!-- approval email !-->
+                <div id="get_approver_email" class="form-group install_methods">
+                    <?php
+                    $this->Form->label($this->_("GoGetSSLv2.service_field.gogetssl_approver_email", true), "gogetssl_approver_email");
+                    ?>
+                    <span id="getAlternatives" class="btn btn-warning btn-xs pull-right"><?php echo $this->Html->ifSet(Language::_("GoGetSSLv2.tab_install.other_installs", true));?></span>
+                    <?php
+                    $this->Form->fieldSelect(
+                        "gogetssl_approver_email",
+                        $this->Html->ifSet($gogetssl_approver_emails),
+                        null,
+                        array('id'=>"gogetssl_approver_email", 'class'=>"form-control"));
+                    ?>
+                </div><!-- approval email end !-->
+            </div>
+
+        </div>
+        <button class="btn btn-warning pull-right">Re Issue Certificate</button>
+    </div>
+
+    <?php $this->Form->end(); ?>
+    <script>
+        //since we are using external file we need to parse some stuff to our javascript
+        //Action URL For our ajax calls
+        var $action_url = '<?php echo $action_url; ?>';
+        //Passing CSRF
+        var $ajax_query = {
+            '_csrf_token' 	: 	'<?php echo $this->Form->getCsrfToken();?>'
+        };
+        //Pass back any filtered POST back to our scripts
+        var $post_back =  <?php echo $post_back; ?>
+    </script>
+    <!--Include our javascript file !-->
+    <script type='text/javascript' src='<?php echo $this->Html->safe($this->view_dir . $js_script);?>'></script>
+
+
+
+
+

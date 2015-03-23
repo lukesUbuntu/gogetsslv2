@@ -1,0 +1,4 @@
+.options {margin-top:15px;}
+.options a { padding-left:24px; margin-right:24px; font-weight:bold;}
+
+.options .actions {float:left; margin-right:10px; background-color:#f9f9f9; padding:8px; border-radius:4px; -moz-border-radius:4px; -webkit-border-radius:4px;}

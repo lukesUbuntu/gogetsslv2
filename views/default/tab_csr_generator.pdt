@@ -1,0 +1,190 @@
+<?php
+/*
+ * @todo Will convert this to using the Form helper
+ */
+?>
+<div id="csr_form" class="col-md-12">
+    <div class="form-group">
+        <label for="gogetssl_csr_fqdn"><?php echo Language::_("GoGetSSLv2.csr_form.fqdn", true); ?> : </label> <?php echo Language::_("GoGetSSLv2.csr_form.fqdn.description", true); ?>
+        <!--
+            <input type="text" name="gogetssl_csr_fqdn" value="" id="gogetssl_csr_fqdn" class="form-control">
+        !-->
+        <?php
+            $this->Form->fieldText("gogetssl_csr_fqdn", $this->Html->ifSet($gogetssl_csr_fqdn), array('id' => "gogetssl_csr_fqdn",'class'=>"form-control"));
+        ?>
+    </div>
+
+    <div class="form-group">
+        <label for="gogetssl_csr_country"><?php echo Language::_("GoGetSSLv2.csr_form.country", true); ?> : </label><?php echo Language::_("GoGetSSLv2.csr_form.country.description", true); ?>
+        <!--
+            <input type="text" name="gogetssl_csr_country" value="" id="gogetssl_csr_country" class="form-control">
+        !-->
+        <?php
+
+        $this->Form->fieldSelect(
+            "gogetssl_csr_country",
+            $this->Form->collapseObjectArray($gogetssl_country_codes, array("name", "alt_name"), "alpha2", " - "),
+            $gogetssl_country_default,
+            array('id'=>"gogetssl_csr_country",'class'=>"form-control")
+        );
+
+
+        ?>
+
+    </div>
+
+    <div class="form-group">
+
+        <label for="gogetssl_csr_state"><?php echo Language::_("GoGetSSLv2.csr_form.state", true); ?> : </label><?php echo Language::_("GoGetSSLv2.csr_form.state.description", true); ?>
+        <?php
+        $this->Form->fieldText("gogetssl_csr_state", $this->Html->ifSet($gogetssl_csr_state), array('id' => "gogetssl_csr_state",'class'=>"form-control"));
+        ?>
+
+
+
+
+    </div>
+    <div class="form-group">
+        <label for="gogetssl_csr_locality"><?php echo Language::_("GoGetSSLv2.csr_form.locality", true); ?> : </label><?php echo Language::_("GoGetSSLv2.csr_form.locality.description", true); ?>
+        <input type="text" name="gogetssl_csr_locality" value="" id="gogetssl_csr_locality" class="form-control">
+    </div>
+    <div class="form-group">
+        <label for="gogetssl_csr_organization"><?php echo Language::_("GoGetSSLv2.csr_form.organization", true); ?> : </label><?php echo Language::_("GoGetSSLv2.csr_form.organization.description", true); ?>
+        <input type="text" name="gogetssl_csr_organization" value="" id="gogetssl_csr_organization" class="form-control">
+    </div>
+    <div class="form-group">
+        <label for="gogetssl_csr_organization_unit"><?php echo Language::_("GoGetSSLv2.csr_form.organization_unit", true); ?> : </label><?php echo Language::_("GoGetSSLv2.csr_form.organization_unit.description", true); ?>
+        <input type="text" name="gogetssl_csr_organization_unit" value="" id="gogetssl_csr_organization_unit" class="form-control">
+    </div>
+    <div class="form-group">
+        <label for="gogetssl_csr_email"><?php echo Language::_("GoGetSSLv2.csr_form.email", true); ?> : </label><?php echo Language::_("GoGetSSLv2.csr_form.email.description", true); ?>
+        <?php
+        $this->Form->fieldText("gogetssl_csr_email", $this->Html->ifSet($gogetssl_csr_email), array('id' => "gogetssl_csr_email",'class'=>"form-control" ,'required' => 'email'));
+        ?>
+    </div>
+    <div style="padding-bottom: 10px;">
+        <!--
+        <span id="install_csr_options" style="display: none"">
+            <span id="gogetssl_install_csr_button" class="btn btn-info ">Install CSR</span>
+            <span id="gogetssl_download_csr_button" class="btn btn-default ">Download CSR</span>
+
+        </span>!-->
+        <span id="gogetssl_generate_csr_button" class="btn btn-success pull-right"><?php echo Language::_("GoGetSSLv2.csr_form.generate_csr_button", true); ?></span>
+    </div>
+
+
+</div>
+
+
+<div id="code_window">
+
+    <div id="install_csr_options" style="display: none; padding-bottom: 20px;">
+        <span id="gogetssl_install_csr_button" class="btn btn-info ">Install CSR</span>
+        <span id="gogetssl_download_csr_button" class="btn btn-default ">Download CSR</span>
+        <span id="gogetssl_download_csr_button" class="btn btn-default ">Download P KEY</span>
+
+    </div>
+    Generated : 2048bit , <span id="hash"></span>
+<pre id="csr_code" >
+
+</pre>
+<pre id="csr_key" >
+
+</pre>
+</div>
+<script>
+    //since we are using external files we need to predefine some details
+    var $install_csr_url = '<?php echo $install_csr_url; ?>';
+    var $action_url = '<?php echo $action_url; ?>';
+    var $ajax_query = {
+        '_csrf_token' 	: 	'<?php echo $this->Form->getCsrfToken();?>'
+    };
+    var csr_details = false;
+</script>
+<script>
+
+    $(document).ready(function(){
+        $("#code_window").hide();
+
+        $("#gogetssl_generate_csr_button").click(generateCSR);
+
+        $("#gogetssl_install_csr_button").click(installCSR)
+
+
+
+    });
+
+    function installCSR(){
+        //we are going to pass the csr data to our install tab
+        if (csr_data == false || !/BEGIN CERTIFICATE REQUEST/.test(csr_data.csr_code)){
+            alert("Can't install didn't generate CSR")
+            return;
+        }
+
+        window.top.location.href = $install_csr_url + "?action=install_csr";
+        //&csr_data="+ encodeURIComponent(btoa(csr_data.csr_code));
+
+    }
+    function generateCSR(){
+        //set our ajax action
+        //$ajax_query.action = 'authAlternatives';
+        $ajax_query.action = 'generateCSR';
+        //$ajax_query.csr =    $("#gogetssl_csr").val();
+        //$ajax_query.csr =    'teting';
+        
+        
+        $ajax_query.gogetssl_csr_fqdn   = $("#gogetssl_csr_fqdn").val()
+        $ajax_query.gogetssl_csr_country  = $("#gogetssl_csr_country").val()
+        $ajax_query.gogetssl_csr_state = $("#gogetssl_csr_state").val()
+        $ajax_query.gogetssl_csr_locality = $("#gogetssl_csr_locality").val()
+        $ajax_query.gogetssl_csr_organization = $("#gogetssl_csr_organization").val()
+        $ajax_query.gogetssl_csr_organization_unit = $("#gogetssl_csr_organization_unit").val()
+        $ajax_query.gogetssl_csr_email = $("#gogetssl_csr_email").val()
+
+        $.ajax({
+            method: 'GET',
+            url: $action_url,
+            data: $ajax_query,
+            dataType: "jsonp",
+            cache : true,
+            success: function (response) {
+                console.log("response",response)
+                if (response.success == true){
+                    csr_data = response.data;
+                    console.log("csr_data",csr_data);
+
+                    if ((typeof csr_data.csr_code == "string" && typeof csr_data.csr_key == "string") && /BEGIN CERTIFICATE REQUEST/.test(csr_data.csr_code))
+                    {
+                        $("#csr_code").text(csr_data.csr_code);
+                        $("#csr_key").text(csr_data.csr_key);
+                        $("#hash").text(csr_data.hash);
+
+                        $("#install_csr_options").show();
+                        $("#csr_form").hide();
+                    }else{
+
+                        $("#csr_cert").text("Failed to generate CSR");
+                    }
+
+
+
+
+                    $("#code_window").show();
+
+                }else{
+                    console.log("response.data.validation",typeof response.data)
+                    console.log("missing fields",response.data.fields)
+                    alert("Failed : "+ response.data.message);
+                }
+
+
+            },
+            beforeSend: function() {
+                $("#csr_form").append($(this).blestaLoadingDialog());
+            },
+            complete: function() {
+                $(".loading_container", $("#csr_form")).remove();
+            }
+        });
+    }
+</script>
