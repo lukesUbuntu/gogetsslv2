@@ -524,9 +524,16 @@ class Gogetsslv2 extends Module
             $this->log($row->meta->api_username . "|ssl-new-order", serialize($data), "input", true);
 
             //make the call
+            //for testing
+            /*
+            if (!isset($_SESSION['addSSLOrder'])){
+                $_SESSION['addSSLOrder'] = $api->addSSLOrder($data);
+            }
+            $response = $_SESSION['addSSLOrder'];
+                //$api->addSSLOrder($data);
+            */
+
             $response = $api->addSSLOrder($data);
-
-
             $result = $this->parseResponse($response, $row);
 
             if ($row->meta->sandbox == true && $this->Input->errors()){
@@ -559,12 +566,7 @@ class Gogetsslv2 extends Module
 
             }
 
-        }
-
-
-
-        // gogetssl_issed re-issue certificate
-        if ($vars["use_module"] == "true" && $service_fields->gogetssl_issed == true) {
+        }else  if ($vars["use_module"] == "true" && $service_fields->gogetssl_issed == true) {
             $order_id = $service_fields->gogetssl_orderid;
 
             $data = array(
@@ -1476,7 +1478,6 @@ class Gogetsslv2 extends Module
         $client_info = $this->Clients->get($service->client_id,false);
         $countries = $this->Countries->getList();
 
-        //print_r($client_info);exit;
         $this->view->set("view", $this->view->view);
         $this->view->set("gogetssl_country_codes",$countries);
         $this->view->set("gogetssl_country_default",$client_info->country);
@@ -1597,20 +1598,23 @@ class Gogetsslv2 extends Module
 
             $api = $this->getApi($row->meta->api_username, $row->meta->api_password, $row->meta->sandbox, $row);
 
+            //$response = false;
+            $response = $api->getOrderStatus($service_fields->gogetssl_orderid);
+
+            //for testing purposes
+            /*
             if (!isset($_SESSION['getOrderStatus']) || empty($_SESSION['getOrderStatus'])){
-                $response = $api->getOrderStatus($service_fields->gogetssl_orderid);
                 $_SESSION['getOrderStatus'] = $response;
             }
-
             $response = $_SESSION['getOrderStatus'];
-
-
+            //print_r($response);
+            */
             $result = $this->parseResponse($response, $row);
             $csr = $result['csr_code'];
             $message = '';
             $install_method = $result['dcv_method'];
             $status = $result['status'];
-
+            //echo $status;exit;
             if ($install_method == 'email'){
                 $message = "<p>Certificate details have been sent to ".$result['approver_email']." </p>";
 
@@ -1638,7 +1642,7 @@ class Gogetsslv2 extends Module
 
             $start_message = "Certificate has already been processed, please go to <a href=\"$link\">re-issue Certificate</a>";
 
-            if ($status == "processing")
+            if ($status == "processing" || $status == "pending" || $status == "new_order" )
                 $start_message = "Order is still processing, please check your install. <h3>".ucfirst($install_method)." Install Method</h3><p>$message</p>";
 
 
