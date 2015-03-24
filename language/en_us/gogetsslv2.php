@@ -22,7 +22,7 @@ $lang['GoGetSSLv2.!error.api.internal'] = "An internal error occurred, or the se
 $lang['GoGetSSLv2.please_select'] = "-- Please Select --";
 
 // Basics
-$lang['GoGetSSLv2.name'] = "GoGetSSLv2 Extra";
+$lang['GoGetSSLv2.name'] = "GoGetSSLv2 Extended";
 $lang['GoGetSSLv2.module_row'] = "GoGetSSLv2 Reseller";
 $lang['GoGetSSLv2.module_row_plural'] = "Resellers";
 

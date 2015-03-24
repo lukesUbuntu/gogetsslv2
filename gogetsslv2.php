@@ -16,10 +16,13 @@
  * @todo Still have language file to update
  * @todo Clean up some of the template files
  * @todo Generate CSR download key options need to be linked in.
- * @todo Fix required install field Title,Internatinal Phone number
+ * @todo Fix required install field Title,International Phone number
  * @todo Display CSR,PKEY on client install page as download option
  * @todo Remember form filled content when swapping between CSR Generating to install client tab
  * @todo Fix when submitting install to show blesta loading.
+ * @todo final code clean up
+ * @todo Add Administration re-issuing of certificate options.
+ * @todo Add option to send out email after installation has been completed of cert
  */
 class Gogetsslv2 extends Module
 {
@@ -1050,12 +1053,15 @@ class Gogetsslv2 extends Module
         return array(
             'module' => array(),
             'package' => array("gogetssl_product"),
+            'service' => array("gogetssl_fqdn")
+            /*
+             @todo resolve email on after added cert
             'service' => array("gogetssl_approver_email", "gogetssl_fqdn", "gogetssl_webserver_type", "gogetssl_csr",
                 "gogetssl_orderid", "gogetssl_title", "gogetssl_firstname", "gogetssl_lastname",
                 "gogetssl_address1", "gogetssl_address2", "gogetssl_city", "gogetssl_zip", "gogetssl_state",
                 "gogetssl_country", "gogetssl_email", "gogetssl_number", "gogetssl_fax", "gogetssl_organization",
                 "gogetssl_organization_unit"
-            )
+            )*/
         );
     }
 
@@ -1105,13 +1111,16 @@ class Gogetsslv2 extends Module
      */
     private function makeAddFields($package, $vars)
     {
+        //return "Sorry this has not been implemented yet. This can be installed via order form will be completed soon.";
+
         Loader::loadHelpers($this, array("Form", "Html"));
 
         // Load the API
-        $row = $this->getModuleRow($package->module_row);
-        $api = $this->getApi($row->meta->api_username, $row->meta->api_password, $row->meta->sandbox, $row);
+        //$row = $this->getModuleRow($package->module_row);
+       // $api = $this->api($row);
 
         $fields = new ModuleFields();
+
 
         $fields->setHtml("
 			<script type=\"text/javascript\">
@@ -1129,98 +1138,8 @@ class Gogetsslv2 extends Module
         $gogetssl_fqdn->attach($fields->fieldText("gogetssl_fqdn", $this->Html->ifSet($vars->gogetssl_fqdn), array('id' => "gogetssl_fqdn")));
         $fields->setField($gogetssl_fqdn);
         unset($gogetssl_fqdn);
-
-        $approver_emails = $this->getApproverEmails($api, $package, $this->Html->ifSet($vars->gogetssl_fqdn));
-
-        $gogetssl_approver_emails = array('' => Language::_("GoGetSSLv2.please_select", true)) + $approver_emails;
-        $gogetssl_approver_email = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_approver_email", true), "gogetssl_approver_email");
-        $gogetssl_approver_email->attach($fields->fieldSelect("gogetssl_approver_email", $gogetssl_approver_emails,
-            $this->Html->ifSet($vars->gogetssl_approver_email), array('id' => "gogetssl_approver_email")));
-        $fields->setField($gogetssl_approver_email);
-        unset($gogetssl_approver_email);
-
-        $gogetssl_csr = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_csr", true), "gogetssl_csr");
-        $gogetssl_csr->attach($fields->fieldTextArea("gogetssl_csr", $this->Html->ifSet($vars->gogetssl_csr), array('id' => "gogetssl_csr")));
-        $fields->setField($gogetssl_csr);
-        unset($gogetssl_csr);
-
-        $gogetssl_webserver_type = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_webserver_type", true), "gogetssl_webserver_type");
-        $gogetssl_webserver_type->attach($fields->fieldSelect("gogetssl_webserver_type", $this->getWebserverTypes($api, $package),
-            $this->Html->ifSet($vars->gogetssl_webserver_type), array('id' => "gogetssl_webserver_type")));
-        $fields->setField($gogetssl_webserver_type);
-        unset($gogetssl_webserver_type);
-
-        $gogetssl_title = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_title", true), "gogetssl_title");
-        $gogetssl_title->attach($fields->fieldText("gogetssl_title", $this->Html->ifSet($vars->gogetssl_title), array('id' => "gogetssl_title")));
-        $fields->setField($gogetssl_title);
-        unset($gogetssl_title);
-
-        $gogetssl_firstname = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_firstname", true), "gogetssl_firstname");
-        $gogetssl_firstname->attach($fields->fieldText("gogetssl_firstname", $this->Html->ifSet($vars->gogetssl_firstname), array('id' => "gogetssl_firstname")));
-        $fields->setField($gogetssl_firstname);
-        unset($gogetssl_firstname);
-
-        $gogetssl_lastname = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_lastname", true), "gogetssl_lastname");
-        $gogetssl_lastname->attach($fields->fieldText("gogetssl_lastname", $this->Html->ifSet($vars->gogetssl_lastname), array('id' => "gogetssl_lastname")));
-        $fields->setField($gogetssl_lastname);
-        unset($gogetssl_lastname);
-
-        $gogetssl_address1 = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_address1", true), "gogetssl_address1");
-        $gogetssl_address1->attach($fields->fieldText("gogetssl_address1", $this->Html->ifSet($vars->gogetssl_address1), array('id' => "gogetssl_address1")));
-        $fields->setField($gogetssl_address1);
-        unset($gogetssl_address1);
-
-        $gogetssl_address2 = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_address2", true), "gogetssl_address2");
-        $gogetssl_address2->attach($fields->fieldText("gogetssl_address2", $this->Html->ifSet($vars->gogetssl_address2), array('id' => "gogetssl_address2")));
-        $fields->setField($gogetssl_address2);
-        unset($gogetssl_address2);
-
-        $gogetssl_city = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_city", true), "gogetssl_city");
-        $gogetssl_city->attach($fields->fieldText("gogetssl_city", $this->Html->ifSet($vars->gogetssl_city), array('id' => "gogetssl_city")));
-        $fields->setField($gogetssl_city);
-        unset($gogetssl_city);
-
-        $gogetssl_zip = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_zip", true), "gogetssl_zip");
-        $gogetssl_zip->attach($fields->fieldText("gogetssl_zip", $this->Html->ifSet($vars->gogetssl_zip), array('id' => "gogetssl_zip")));
-        $fields->setField($gogetssl_zip);
-        unset($gogetssl_zip);
-
-        $gogetssl_state = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_state", true), "gogetssl_state");
-        $gogetssl_state->attach($fields->fieldText("gogetssl_state", $this->Html->ifSet($vars->gogetssl_state), array('id' => "gogetssl_state")));
-        $fields->setField($gogetssl_state);
-        unset($gogetssl_state);
-
-        $gogetssl_country = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_country", true), "gogetssl_country");
-        $gogetssl_country->attach($fields->fieldText("gogetssl_country", $this->Html->ifSet($vars->gogetssl_country), array('id' => "gogetssl_country")));
-        $fields->setField($gogetssl_country);
-        unset($gogetssl_country);
-
-        $gogetssl_email = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_email", true), "gogetssl_email");
-        $gogetssl_email->attach($fields->fieldText("gogetssl_email", $this->Html->ifSet($vars->gogetssl_email), array('id' => "gogetssl_email")));
-        $fields->setField($gogetssl_email);
-        unset($gogetssl_email);
-
-        $gogetssl_number = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_number", true), "gogetssl_number");
-        $gogetssl_number->attach($fields->fieldText("gogetssl_number", $this->Html->ifSet($vars->gogetssl_number), array('id' => "gogetssl_number")));
-        $fields->setField($gogetssl_number);
-        unset($gogetssl_number);
-
-        $gogetssl_fax = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_fax", true), "gogetssl_fax");
-        $gogetssl_fax->attach($fields->fieldText("gogetssl_fax", $this->Html->ifSet($vars->gogetssl_fax), array('id' => "gogetssl_fax")));
-        $fields->setField($gogetssl_fax);
-        unset($gogetssl_fax);
-
-        $gogetssl_organization = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_organization", true), "gogetssl_organization");
-        $gogetssl_organization->attach($fields->fieldText("gogetssl_organization", $this->Html->ifSet($vars->gogetssl_organization), array('id' => "gogetssl_organization")));
-        $fields->setField($gogetssl_organization);
-        unset($gogetssl_organization);
-
-        $gogetssl_organization_unit = $fields->label(Language::_("GoGetSSLv2.service_field.gogetssl_organization_unit", true), "gogetssl_organization_unit");
-        $gogetssl_organization_unit->attach($fields->fieldText("gogetssl_organization_unit", $this->Html->ifSet($vars->gogetssl_organization_unit), array('id' => "gogetssl_organization_unit")));
-        $fields->setField($gogetssl_organization_unit);
-        unset($gogetssl_organization_unit);
-
         return $fields;
+
     }
 
     /**
@@ -1232,6 +1151,7 @@ class Gogetsslv2 extends Module
      */
     public function getAdminAddFields($package, $vars = null)
     {
+
         return $this->makeAddFields($package, $vars);
     }
 
@@ -1291,9 +1211,11 @@ class Gogetsslv2 extends Module
     public function getAdminTabs($package)
     {
         return array(
-            'tabReissue' => Language::_("GoGetSSLv2.tab_reissue", true),
+            'tabClientReissueAdmin' => Language::_("GoGetSSLv2.tab_reissue", true),
         );
     }
+
+
 
     /**
      * Returns all tabs to display to a client when managing a service whose
@@ -1319,7 +1241,20 @@ class Gogetsslv2 extends Module
         return $tabs;
         */
     }
-
+    /**
+     * Reissue tab
+     *
+     * @param stdClass $package A stdClass object representing the current package
+     * @param stdClass $service A stdClass object representing the current service
+     * @param array $get Any GET parameters
+     * @param array $post Any POST parameters
+     * @param array $files Any FILES parameters
+     * @return string The string representing the contents of this tab
+     */
+    public function tabClientReissueAdmin($package, $service, array $getRequest = null, array $postRequest = null, array $files = null)
+    {
+        return "Sorry this is still to be implemented";
+    }
     /**
      * Reissue tab
      *
@@ -1435,9 +1370,6 @@ class Gogetsslv2 extends Module
 
         return $this->view->fetch();
 
-
-
-        //return $this->tabReissueInternal($package, $service, $get, $post, $files);
     }
 
     /**
@@ -1733,19 +1665,7 @@ class Gogetsslv2 extends Module
         return $this->view->fetch();
     }
 
-	/**
-	 * Generic Reissue tab functions
-	 *
-	 * @param stdClass $package A stdClass object representing the current package
-	 * @param stdClass $service A stdClass object representing the current service
-	 * @param array $get Any GET parameters
-	 * @param array $post Any POST parameters
-	 * @param array $files Any FILES parameters
-	 * @return string The string representing the contents of this tab
-	 */	
-	private function tabReissueInternal($package, $service, array $getRequest=null, array $postRequest=null, array $files=null) {
 
-	}
 	
 	/**
 	 * Initializes the API and returns an instance of that object with the given $host, $user, and $pass set
@@ -1795,12 +1715,11 @@ class Gogetsslv2 extends Module
 
         if ($this->_api == false){
 
-            if ($module_row == false)
+            if ($module_row == false || !isset($module_row))
                 $module_row = $this->getModuleRow();
 
             if (!isset($module_row)){
-                echo "failed to get module row";
-                exit;
+                die ("failed to load api (module row issue)");
             }
 
             Loader::load(dirname(__FILE__) . DS . "apis" . DS . "GoGetSSLApi.php");
@@ -2409,7 +2328,6 @@ class Gogetsslv2 extends Module
 
         $lib->sendAjax($response);
 
-        //return $cert_details;
     }
 }
 
