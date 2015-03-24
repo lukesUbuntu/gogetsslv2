@@ -1,19 +1,25 @@
 <?php
 /**
- * GoGetSsl Modified Module
+ * GoGetSsl Extended Module
  *
  * @package blesta
- * @subpackage blesta.components.modules.gogetssl
- * @author Phillips Data, Inc.
- * @author Full Ambit Networks
- * @copyright Copyright (c) 2013, Phillips Data, Inc
- * @license http://www.blesta.com/license/ The Blesta License Agreement
- * @link http://www.blesta.com/ Blesta
- * @link https://www.fullambit.net/
+ * @subpackage blesta.components.modules.gogetsslv2
+ * @author Phillips Data, Inc. 
+ * @author Full Ambit Networks (orginal)
+ * @author Luke Hardiman, Koha Technologies LTD
+ * @copyright Copyright (c) 2015, Luke Hardiman
+ * @license https://raw.githubusercontent.com/lukesUbuntu/gogetsslv2/master/LICENSE
+ * @link http://kohatech.co.nz
  */
 
 /*
- * @todo create install view handler.
+ * @todo Still have language file to update
+ * @todo Clean up some of the template files
+ * @todo Generate CSR download key options need to be linked in.
+ * @todo Fix required install field Title,Internatinal Phone number
+ * @todo Display CSR,PKEY on client install page as download option
+ * @todo Remember form filled content when swapping between CSR Generating to install client tab
+ * @todo Fix when submitting install to show blesta loading.
  */
 class Gogetsslv2 extends Module
 {
@@ -26,7 +32,7 @@ class Gogetsslv2 extends Module
      * @var string The authors of this module
      */
     private static $authors = array(
-        array('name' => "Modified : Luke Hardiman", 'url' => "https://lukes-server.com"),
+        array('name' => "Modified : Luke Hardiman", 'url' => "http://kohatech.co.nz"),
         array('name' => "Phillips Data, Inc.", 'url' => "http://www.blesta.com")
     );
 
@@ -43,8 +49,8 @@ class Gogetsslv2 extends Module
 
         //load our config file
         Configure::load("gogetsslv2", dirname(__FILE__) . DS . "config" . DS);
-        error_reporting(E_ALL);
-        ini_set('display_errors', 1);
+        //error_reporting(E_ALL);
+        //ini_set('display_errors', 1);
     }
 
     /**
