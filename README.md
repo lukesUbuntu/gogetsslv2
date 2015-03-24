@@ -1,20 +1,18 @@
-#######GoGetSSLv2 v1.0.8
-####### NOTES #######
-This is first inital release, i have done a ton of *sandbox* testing, and only several *live* testing, any issue's please submit.
-
+GoGetSSLv2 version 1.0.8
 ###GoGetSSLv2 Extended Module For Blesta Billing System
 [**Blesta**](http://www.blesta.com) is a professional web based billing and support application focusing on productivity and usability.
 
 [**GoGetSSL**](https://www.gogetssl.com) offer's a wide range of SSL certificates and a reseller program.
 
-This module is a extended version of the standard GoGetSSL Blesta Module, alot has been re-written and added.
+This module is a extended version of the standard GoGetSSL Blesta Module, alot has been re-written and added :
 
-## This module adds :
-1. Allows certs to be added after order/purchase
-2. Add support for HTTP/DNS Authentaction
-3. Can download CSR/PKEY options
-4. Can generate CSR Key's
+* Allows certs to be added after order/purchase
+* Add support for HTTP/DNS Authentaction
+* Can download CSR/PKEY options
+* Can generate CSR Key's
 
+####### NOTES #######
+This is first inital release, i have done a ton of *sandbox* testing, and only several *live* testing, any issue's please submit.
 
 ## Installation instructions
 1. [Download](https://github.com/lukesUbuntu/gogetsslv2/archive/master.zip) this module
