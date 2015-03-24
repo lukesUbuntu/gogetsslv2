@@ -1,6 +1,6 @@
 #######GoGetSSLv2 v1.0.8
 ####### NOTES #######
-This is first inital release, i have done a ton of sandbox testing, and only several live testing, any issue's please submit.
+This is first inital release, i have done a ton of *sandbox* testing, and only several *live* testing, any issue's please submit.
 
 ###GoGetSSLv2 Extended Module For Blesta Billing System
 [**Blesta**](http://www.blesta.com) is a professional web based billing and support application focusing on productivity and usability.
@@ -30,3 +30,4 @@ This module is a extended version of the standard GoGetSSL Blesta Module, alot h
 4. Fix required install field Title,Internatinal Phone number
 5. Display CSR,PKEY on client install page as download option
 6. Remember form filled content when swapping between CSR Generating to install client tab
+7. Fix when submitting install to show blesta loading
