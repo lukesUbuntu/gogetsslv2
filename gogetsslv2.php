@@ -173,6 +173,13 @@ class Gogetsslv2 extends Module
         return null;
     }
 
+    /*
+     * @debug mode
+     * Debug mode, during testing this will capture some API calls and also print_r the value
+     * It will store these into session and will use these instead of requesting new api call to server
+     */
+    private $debug_mode = false;
+
     /**
      * Attempts to validate service info. This is the top-level error checking method. Sets Input errors on failure.
      *
@@ -226,12 +233,15 @@ class Gogetsslv2 extends Module
                     'message' => Language::_("GoGetSSLv2.!error.gogetssl_fqdn.format", true)
                 )
             );*/
-
             unset($rules['gogetssl_approver_email']);
             unset($rules['gogetssl_csr']);
             unset($rules['gogetssl_webserver_type']);
 
         }
+        //if we are not validating by email unset email rule
+        if (isset($vars['gogetssl_approver_type']) && $vars['gogetssl_approver_type'] != "email")
+            unset($rules['gogetssl_approver_email']);
+
         $this->Input->setRules($rules);
         return $this->Input->validates($vars);
     }
@@ -496,7 +506,6 @@ class Gogetsslv2 extends Module
 
 
         // Validate the service-specific fields
-
         $this->validateService($package, $vars , true);
 
         if ($this->Input->errors())
@@ -525,15 +534,22 @@ class Gogetsslv2 extends Module
 
             //make the call
             //for testing
-            /*
-            if (!isset($_SESSION['addSSLOrder'])){
-                $_SESSION['addSSLOrder'] = $api->addSSLOrder($data);
+            if ($this->debug_mode == false){
+                $response = $api->addSSLOrder($data);
+            }else{
+                if (!isset($_SESSION['addSSLOrder'])){
+                    $_SESSION['addSSLOrder'] = $api->addSSLOrder($data);
+                }
+                $response = $_SESSION['addSSLOrder'];
             }
-            $response = $_SESSION['addSSLOrder'];
-                //$api->addSSLOrder($data);
-            */
 
-            $response = $api->addSSLOrder($data);
+
+
+
+                //$api->addSSLOrder($data);
+
+
+            //$response = $api->addSSLOrder($data);
             $result = $this->parseResponse($response, $row);
 
             if ($row->meta->sandbox == true && $this->Input->errors()){
@@ -596,7 +612,6 @@ class Gogetsslv2 extends Module
                 //$this->parseResponse($api->activateSSLOrder($order_id), $row);
             }
         }
-
 
 
         return $this->ourServiceFields($service_fields, $order_id);
@@ -1517,6 +1532,7 @@ class Gogetsslv2 extends Module
         $service_fields = $this->serviceFieldsToObject($service->fields);
 
 
+
         //get our external library helper
         $lib = $this->getLib();
 
@@ -1524,7 +1540,9 @@ class Gogetsslv2 extends Module
         $allowedRequests = array("authAlternatives","emailAuthorisation");
 
 
-        //process any ajax request first before page render
+
+        //process any ajax request first before page renders
+        //*******************************HANDLE AJAX REQUEST START***********************************/
         if ($lib->isAjaxRequest()){
 
             $dataRequest    = $lib->dataRequest($getRequest,$postRequest);
@@ -1532,10 +1550,10 @@ class Gogetsslv2 extends Module
 
             $lib->processAjax($this,$allowedRequests,$dataRequest,$packageRequest);
         }
+        //*******************************HANDLE AJAX REQUEST END***********************************/
 
         //non ajax calls
-
-        /**Download http file before render**/
+        /**Download http file before render @todo move to global request **/
         if ($lib->isGetRequest($getRequest,array('http_download')) != false){
             $contents = $lib->getRequest($getRequest,'contents');
             $file_name = $lib->getRequest($getRequest,'file_name');
@@ -1546,10 +1564,10 @@ class Gogetsslv2 extends Module
         }
 
 
-        /**POST REQUEST**/
+
         //*******************************HANDLE POST DATA START***********************************/
-        //@todo pass install action
-        if(isset($postRequest["gogetssl_csr"])) {
+        //action=install
+        if(isset($postRequest["gogetssl_csr"]) ) {
 
 
             Loader::loadModels($this, array("Services"));
@@ -1557,19 +1575,26 @@ class Gogetsslv2 extends Module
             $vars['use_module'] = true;
             $vars['client_id'] = $service->client_id;
             $vars['action'] = 'install';
-            //need to look why in fill data we are checking pricing id maybe multiple products?
+            //@todo need to look why we need to fill pricing id maybe multiple products?
             $vars['pricing_id'] = $service->pricing_id;
-            $res = $this->editService($package, $service, $vars);
+            $results = $this->editService($package, $service, $vars);
 
 
-            if (!$this->Input->errors())
-                $this->Services->setFields($service->id, $res);
+            if (!$this->Input->errors()){
+                $this->Services->setFields($service->id, $results);
+                $tmp_service =  $this->serviceFieldsToObject($results);
+                //for security we just going to pass order_id and is issued to our service_fields
+                $service_fields->gogetssl_issed     = $tmp_service->gogetssl_issed;
+                $service_fields->gogetssl_orderid   = $tmp_service->gogetssl_orderid;
+            }
+
+
 
 
         }
         //*******************************HANDLE POST DATA END***********************************/
 
-
+        //RENDER PAGE
         $this->view = new View("tab_client_install", "default");
         $this->view->base_uri = $this->base_uri;
 
@@ -1599,16 +1624,21 @@ class Gogetsslv2 extends Module
             $api = $this->getApi($row->meta->api_username, $row->meta->api_password, $row->meta->sandbox, $row);
 
             //$response = false;
-            $response = $api->getOrderStatus($service_fields->gogetssl_orderid);
+            //$response = $api->getOrderStatus($service_fields->gogetssl_orderid);
 
             //for testing purposes
-            /*
-            if (!isset($_SESSION['getOrderStatus']) || empty($_SESSION['getOrderStatus'])){
-                $_SESSION['getOrderStatus'] = $response;
+
+            if ($this->debug_mode == false){
+                $response = $api->getOrderStatus($service_fields->gogetssl_orderid);
+            }else{
+                if (!isset($_SESSION['getOrderStatus']) || empty($_SESSION['getOrderStatus'])){
+                    $_SESSION['getOrderStatus'] = $api->getOrderStatus($service_fields->gogetssl_orderid);
+                }
+                $response = $_SESSION['getOrderStatus'];
             }
-            $response = $_SESSION['getOrderStatus'];
+
+
             //print_r($response);
-            */
             $result = $this->parseResponse($response, $row);
             $csr = $result['csr_code'];
             $message = '';
