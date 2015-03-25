@@ -29,3 +29,4 @@ This is first initial release so please use at your *own risk*, I have done a to
 * Remember form filled content when swapping between CSR Generating to install client tab.
 * Fix when submitting install to show blesta loading screen.
 * Add Administration re-issuing of certificate options.
+* Add email tags for when issuing new certificate 

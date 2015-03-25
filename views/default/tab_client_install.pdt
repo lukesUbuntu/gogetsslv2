@@ -225,7 +225,7 @@
                     $this->Form->fieldText("gogetssl_organization_unit", $this->Html->ifSet($vars->gogetssl_organization_unit), array('id' => "gogetssl_organization_unit", 'class'=>"form-control"));
                     ?>
                 </div>
-                <button class="btn btn-success pull-right">Submit</button>
+                <button id="submit_install" class="btn btn-success pull-right">Submit</button>
             </div>
 
         </div>

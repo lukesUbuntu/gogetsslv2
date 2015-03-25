@@ -92,6 +92,10 @@ var gogetssl_other_methods = {};
                 $("#get_approver_email").show();
         });
 
+        //show blesta loading on submit
+        $("#submit_install").click(function(){
+            $("#installCsrForm").append($(this).blestaLoadingDialog());
+        });
         //***********************FINAL PAGE MODIFICATIONS**************************************
         $(".install_methods").hide();
         $("#other_methods_div").hide();
@@ -256,4 +260,6 @@ var gogetssl_other_methods = {};
             }
         });
     }
+
+
              

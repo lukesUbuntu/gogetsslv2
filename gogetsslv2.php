@@ -23,6 +23,8 @@
  * @todo final code clean up
  * @todo Add Administration re-issuing of certificate options.
  * @todo Add option to send out email after installation has been completed of cert
+ * @todo when loading re-issue when loading email need to show loading blesta screen
+ * @todo if order is still pending, then re-issue tab should possible be disabled?
  */
 class Gogetsslv2 extends Module
 {
@@ -30,7 +32,7 @@ class Gogetsslv2 extends Module
     /**
      * @var string The version of this module
      */
-    private static $version = "1.0.8";
+    private static $version = "1.0.9";
     /**
      * @var string The authors of this module
      */
@@ -521,7 +523,8 @@ class Gogetsslv2 extends Module
             return;
 
         $row = $this->getModuleRow($package->module_row);
-        $api = $this->getApi($row->meta->api_username, $row->meta->api_password, $row->meta->sandbox, $row);
+
+        $api = $this->api($row);
 
         $service_fields = $this->serviceFieldsToObject($service->fields);
 
@@ -705,7 +708,8 @@ class Gogetsslv2 extends Module
     {
         //@todo finish of renew service
         $row = $this->getModuleRow($package->module_row);
-        $api = $this->getApi($row->meta->api_username, $row->meta->api_password, $row->meta->sandbox, $row);
+        $api = $this->api($row);
+
 
         $order_id = '';
 
@@ -1015,7 +1019,9 @@ class Gogetsslv2 extends Module
         }
 
         if ($row) {
-            $api = $this->getApi($row->meta->api_username, $row->meta->api_password, $row->meta->sandbox, $row);
+
+            $api = $this->api($row);
+
             $products = $this->getProducts($api, $row);
         } else {
             $products = array();
@@ -1345,9 +1351,9 @@ class Gogetsslv2 extends Module
                 "gogetssl_fqdn"             => $service_fields->gogetssl_fqdn,
                 "use_module"                 => true,
                 "pricing_id"                 => $service->pricing_id,
-                "gogetssl_webserver_type"   => $postRequest["gogetssl_webserver_type"],
-                "gogetssl_csr"              => $postRequest["gogetssl_csr"],
-                "gogetssl_approver_type"    => $postRequest["gogetssl_approver_type"],
+                "gogetssl_webserver_type"   =>  $postRequest["gogetssl_webserver_type"],
+                "gogetssl_csr"              =>  $postRequest["gogetssl_csr"],
+                "gogetssl_approver_type"    =>  $postRequest["gogetssl_approver_type"],
                 "gogetssl_approver_email"    => $postRequest["gogetssl_approver_email"],
             );
 
@@ -1559,8 +1565,8 @@ class Gogetsslv2 extends Module
         //***************************************CERTIFICATE HAS BEEN INSTALLED*******************************************
         if ($service_fields->gogetssl_issed){
 
-            $api = $this->getApi($row->meta->api_username, $row->meta->api_password, $row->meta->sandbox, $row);
 
+            $api = $this->api($row);
             //$response = false;
             //$response = $api->getOrderStatus($service_fields->gogetssl_orderid);
 
@@ -1668,23 +1674,6 @@ class Gogetsslv2 extends Module
 
 	
 	/**
-	 * Initializes the API and returns an instance of that object with the given $host, $user, and $pass set
-	 *
-	 * @param string $user The of the GoGetSSLv2 user
-	 * @param string $password The password to the GoGetSSL server
-	 * @param string $sandbox Whether sandbox or not
-	 * @param stdClass $module_row A stdClass object representing a single reseller (optional, required when Module::getModuleRow() is unavailable)
-	 * @return GoGetSSLApi The GoGetSSLApi instance
-	 */
-	public function getApi($user, $password, $sandbox, $module_row) {
-		Loader::load(dirname(__FILE__) . DS . "apis" . DS . "GoGetSSLApi.php");
-		
-		$api = new GoGetSSLApi($sandbox == "true");
-		$this->parseResponse($api->auth($user, $password), $module_row);
-		return $api;
-	}
-	
-	/**
 	 * Retrieves a list of products
 	 *
 	 * @param GoGetSslApi $api the API to use
@@ -1705,16 +1694,16 @@ class Gogetsslv2 extends Module
 	}
 
     /**
-     * GET singleton API call as we are caching some calls to server
+     * Initializes the API and returns a Singleton instance of that object for api calls
      *
+     * @param stdClass $module_row A stdClass object representing a single reseller (optional, required when Module::getModuleRow() is unavailable)
+     * @return GoGetSSLApi The GoGetSSLApi instance
      */
     private $_api = false;
     private function api($module_row = false){
-        //load our api
-
-
         if ($this->_api == false){
 
+            //if module_row was not passed will try retrieve
             if ($module_row == false || !isset($module_row))
                 $module_row = $this->getModuleRow();
 
@@ -1723,27 +1712,17 @@ class Gogetsslv2 extends Module
             }
 
             Loader::load(dirname(__FILE__) . DS . "apis" . DS . "GoGetSSLApi.php");
-           // Loader::load(dirname(__FILE__) . DS . "apis" . DS . "virtualmin_api.php");
 
-            //$host, $username, $password, $port = "10000", $use_ssl = true
-            //$api = new GoGetSSLApi($sandbox == "true");
+            $this->_api = new GoGetSSLApi($module_row->meta->sandbox == "true");
 
-            $this->_api = new GoGetSSLApi(
-                $module_row->meta->sandbox
-            );
-            /*
-            $this->_api = new GoGetSSLApi(
-                $module_row->meta->host_name,			//hostname
-                $module_row->meta->user_name,			//username
-                $module_row->meta->password,			//password
-                $module_row->meta->port_number,			//port number
-                ($module_row->meta->use_ssl == "true")	//use secure
-            );*/
-            //$api->auth($user, $password), $module_row
-            $this->parseResponse($this->_api->auth($module_row->meta->api_username, $module_row->meta->api_password), $module_row);
+
+            $this->parseResponse($this->_api->auth(
+                $module_row->meta->api_username,
+                $module_row->meta->api_password
+            ),
+            $module_row);
+
         }
-
-
 
         return $this->_api;
     }
@@ -1877,9 +1856,9 @@ class Gogetsslv2 extends Module
 			$api_password = (isset($vars['api_password']) ? $vars['api_password'] : "");
 			$sandbox = (isset($vars['sandbox']) && $vars['sandbox'] == "true" ? "true" : "false");
 			$module_row = (object)array('meta' => (object)$vars);
-			
-			$this->getApi($api_username, $api_password, $sandbox, $module_row);
-			
+
+			$this->api($module_row);
+
 			if (!$this->Input->errors())
 				return true;
 			
@@ -2184,17 +2163,19 @@ class Gogetsslv2 extends Module
 
         $lib = $this->getLib();
 
-        //@todo put this in a proper cache
+        //@todo only want to store email_auth during swapping between CSR Generation & domain renew will save as services
+        //@disabled for now due to https://github.com/lukesUbuntu/gogetsslv2/issues/1
+
         if (isset($_SESSION[$domain]['email_auth']) && !empty($_SESSION[$domain]['email_auth'])){
             $lib->sendAjax($_SESSION[$domain]['email_auth']);
         }
 
         if (empty($domain))$lib->sendAjax("domain failed empty",false);
 
-        $row = $this->getModuleRow($package->module_row);
-        $api = $this->api($row);
+
 
         $row = $this->getModuleRow($package->module_row);
+        $api = $this->api($row);
 
 
         $this->log($row->meta->api_username . "|ssl-domain-emails", serialize($domain), "input", true);
@@ -2202,12 +2183,17 @@ class Gogetsslv2 extends Module
         $gogetssl_approver_emails = array();
         try {
 
-            $gogetssl_approver_emails = $this->parseResponse($api->getDomainEmails($domain), $row);
+            $response = $api->getDomainEmails($domain);
+
+            $gogetssl_approver_emails = $this->parseResponse($response, $row);
         }
         catch (Exception $e) {
             // Error, invalid authorization
             $this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
         }
+        //error checking response
+        if ($this->Input->errors())
+            $lib->sendAjax($response,false);
 
         $emails = array();
         if($this->isComodoCert($api, $package) && isset($gogetssl_approver_emails['ComodoApprovalEmails']))
@@ -2277,7 +2263,7 @@ class Gogetsslv2 extends Module
 
         //we can use generate ourselfs or use API
         $row = $this->getModuleRow($package->module_row);
-        $api = $this->getApi($row->meta->api_username, $row->meta->api_password, $row->meta->sandbox, $row);
+        $api = $this->api($row);
 
         //@issue gossl sandbox does not support SHA2 for some reason
         $SHA  = ($row->meta->sandbox == "true" ? "SHA1" : "SHA2");
@@ -2329,6 +2315,8 @@ class Gogetsslv2 extends Module
         $lib->sendAjax($response);
 
     }
+
+
 }
 
 
