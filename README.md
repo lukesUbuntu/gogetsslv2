@@ -1,4 +1,4 @@
-GoGetSSLv2 version 1.0.9
+GoGetSSLv2 version 1.1.0 **BETA**
 ###GoGetSSLv2 Extended Module For Blesta Billing System
 [**Blesta**](http://www.blesta.com) is a professional web based billing and support application focusing on productivity and usability.
 
@@ -28,9 +28,13 @@ This is first initial release so please use at your *own risk*, I have done a to
 * Display CSR,PKEY on client install page as download option.
 * Remember form filled content when swapping between CSR Generating to install client tab.
 * Add Administration re-issuing of certificate options.
-* Add email tags for when issuing new certificate 
+* Add email tags for when issuing new certificate.
+* Add option to send out email after installation has been completed.
 
 ####### CHANGELOG #######
+version 1.1.0 
+* fixed [Other Auth Issue](https://github.com/lukesUbuntu/gogetsslv2/issues/2)
+* fixed loading screen on re-issue cert
 version 1.0.9 
 * fixed [Live Issue](https://github.com/lukesUbuntu/gogetsslv2/issues/1)
 * When submitting cert for install shows loading screen
