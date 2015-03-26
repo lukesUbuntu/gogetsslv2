@@ -52,7 +52,7 @@ var gogetssl_other_methods = {};
 
                 //if we havent finished loading ajax will show loading dialog
                 if (step == "step_3" && loaded.approval_emails == false){
-                    $("#installCsrForm").append($(this).blestaLoadingDialog());
+                    $("#blestaLoader").append($(this).blestaLoadingDialog());
                 }
 
 
@@ -94,7 +94,7 @@ var gogetssl_other_methods = {};
 
         //show blesta loading on submit
         $("#submit_install").click(function(){
-            $("#installCsrForm").append($(this).blestaLoadingDialog());
+            $("#blestaLoader").append($(this).blestaLoadingDialog());
         });
         //***********************FINAL PAGE MODIFICATIONS**************************************
         $(".install_methods").hide();
@@ -111,7 +111,7 @@ var gogetssl_other_methods = {};
     function processDNS_method(){
         //pre-check we haven't processed already
         if ($("#dns_method").hasClass('loaded')){
-            $("#dns_method").show()
+            $("#dns_method").show();
             return;
         }
         //console.log("gogetssl_other_methods.http.content",gogetssl_other_methods.dns);
@@ -172,7 +172,8 @@ var gogetssl_other_methods = {};
      * Gets the Email Approver emails for domain
      */
     function getEmailApproval(){
-
+        //set default auth method as email
+        $("#gogetssl_approver_type").val('email');
         $("#get_approver_email").show();
 
         //basic append so that user knows whats happening
@@ -203,10 +204,10 @@ var gogetssl_other_methods = {};
 
             },
             beforeSend: function() {
-                $("#installCsrForm").append($(this).blestaLoadingDialog());
+                $("#blestaLoader").append($(this).blestaLoadingDialog());
             },
             complete: function() {
-                $(".loading_container", $("#installCsrForm")).remove();
+                $(".loading_container", $("#blestaLoader")).remove();
             }
         });
     }
@@ -253,10 +254,10 @@ var gogetssl_other_methods = {};
 
             },
             beforeSend: function() {
-                $("#installCsrForm").append($(this).blestaLoadingDialog());
+                $("#blestaLoader").append($(this).blestaLoadingDialog());
             },
             complete: function() {
-                $(".loading_container", $("#installCsrForm")).remove();
+                $(".loading_container", $("#blestaLoader")).remove();
             }
         });
     }

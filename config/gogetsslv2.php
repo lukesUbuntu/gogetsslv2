@@ -69,5 +69,5 @@ Configure::set("gogetsslv2.web_server_types.2", array (
     28  => "Plesk",
     30  => "WebLogic – all versions",
     32  => "WebStar",
-    17  => "Zeus v3+"
+    17 => "Zeus v3+"
 ));

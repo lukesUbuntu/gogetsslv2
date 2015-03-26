@@ -6,6 +6,7 @@
 	<?php
 	$this->Form->create($this->base_uri . "services/manage/" . $this->Html->ifSet($service_id) . "/tabClientInstall/",array('id' => 'installCsrForm'));
 	?>
+    <div id="blestaLoader"></div>
     <div id="steps" style="padding-bottom: 20px;">
         <span id="step_1_btn" class="steps btn btn-success" step="step_1">Step 1</span><span id="step_2_btn" class="steps btn btn-disabled" step="step_2">Step 2</span><span id="step_3_btn" class="steps btn btn-disabled" step="step_3">Step 3</span>
     </div>
@@ -38,7 +39,9 @@
                 <!-- place holder for other methods !-->
                 <div id="other_methods_div" class="form-group">
                     <?php
+
                     $this->Form->label("Other Methods", "gogetssl_other_methods_label");
+
                     //$this->Form->fieldSelect("gogetssl_approver_type", null, null, array('id'=>"gogetssl_other_methods", 'class'=>"form-control"));
                     $this->Form->fieldSelect(
                         "gogetssl_approver_type",
@@ -106,9 +109,14 @@
                 <div id="get_approver_email" class="form-group install_methods">
                     <?php
                     $this->Form->label($this->_("GoGetSSLv2.service_field.gogetssl_approver_email", true), "gogetssl_approver_email");
-                    ?>
-                    <span id="getAlternatives" class="btn btn-warning btn-xs pull-right"><?php echo $this->Html->ifSet(Language::_("GoGetSSLv2.tab_install.other_installs", true));?></span>
+
+
+                    if ($cert_type == 1) {
+                        ?>
+                        <span id="getAlternatives"
+                              class="btn btn-warning btn-xs pull-right"><?php echo $this->Html->ifSet(Language::_("GoGetSSLv2.tab_install.other_installs", true));?></span>
                     <?php
+                    }
                     $this->Form->fieldSelect(
                         "gogetssl_approver_email",
                         $this->Html->ifSet($gogetssl_approver_emails),

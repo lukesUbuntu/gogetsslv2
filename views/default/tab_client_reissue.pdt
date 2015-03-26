@@ -6,8 +6,7 @@
 	<?php
 	$this->Form->create($this->base_uri . "services/manage/" . $this->Html->ifSet($service_id) . "/tabClientReissue/",array('id' => 'reinstallCsrForm'));
 	?>
-
-
+    <div id="blestaLoader"></div>
     <!--- CSR INFO !--->
     <div id="step_1" class="step_tab">
         <div class="row panel-fix">
@@ -35,6 +34,7 @@
 
                 <!-- place holder for other methods !-->
                 <div id="other_methods_div" class="form-group">
+
                     <?php
                     $this->Form->label("Other Methods", "gogetssl_other_methods_label");
                     //$this->Form->fieldSelect("gogetssl_approver_type", null, null, array('id'=>"gogetssl_other_methods", 'class'=>"form-control"));
@@ -104,9 +104,11 @@
                 <div id="get_approver_email" class="form-group install_methods">
                     <?php
                     $this->Form->label($this->_("GoGetSSLv2.service_field.gogetssl_approver_email", true), "gogetssl_approver_email");
-                    ?>
-                    <span id="getAlternatives" class="btn btn-warning btn-xs pull-right"><?php echo $this->Html->ifSet(Language::_("GoGetSSLv2.tab_install.other_installs", true));?></span>
-                    <?php
+                    if ($cert_type == 1){
+                        ?>
+                        <span id="getAlternatives" class="btn btn-warning btn-xs pull-right"><?php echo $this->Html->ifSet(Language::_("GoGetSSLv2.tab_install.other_installs", true));?></span>
+                        <?php
+                    }
                     $this->Form->fieldSelect(
                         "gogetssl_approver_email",
                         $this->Html->ifSet($gogetssl_approver_emails),
@@ -117,7 +119,7 @@
             </div>
 
         </div>
-        <button class="btn btn-warning pull-right">Re Issue Certificate</button>
+        <button id="submit_install" class="btn btn-warning pull-right">Re Issue Certificate</button>
     </div>
 
     <?php $this->Form->end(); ?>

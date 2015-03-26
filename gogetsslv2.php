@@ -32,7 +32,7 @@ class Gogetsslv2 extends Module
     /**
      * @var string The version of this module
      */
-    private static $version = "1.0.9";
+    private static $version = "1.1.0";
     /**
      * @var string The authors of this module
      */
@@ -381,6 +381,11 @@ class Gogetsslv2 extends Module
     {
 
         $this->validateService($package, $vars);
+        //we are going to pass the package type as comodo can only do other authentication (dns/http)
+        $row = $this->getModuleRow($package->module_row);
+        $api = $this->api($row);
+        //get the cert type
+        $cert_type = $this->isComodoCert($api, $package) ? '1' : '2';
 
 
         //Preset our record data for row
@@ -491,6 +496,11 @@ class Gogetsslv2 extends Module
                 'key' => "gogetssl_issed",
                 'value' => false,
                 'encrypted' => 0
+            ),
+            array(
+                'key' => "cert_type",
+                'value' => $cert_type,
+                'encrypted' => 0
             )
         );
     }
@@ -538,7 +548,11 @@ class Gogetsslv2 extends Module
             //install cert
             $data = $this->fillSSLDataFrom($package, (isset($vars['client_id']) ? $vars['client_id'] : ""), $vars);
 
-            //if we are not using email as auth we need to unset approver email to force transaction
+            //force dcv_method for email validation for non comodo certs
+            if ($service_fields->cert_type == 2)
+                $data['dcv_method'] = "email";
+
+            //if we are not using email auth we need to unset approver email to force transaction
             if ($data['dcv_method'] != "email")
                 unset($data['approver_email']);
 
@@ -1317,14 +1331,15 @@ class Gogetsslv2 extends Module
         $approver_other = array(
             "http"  => Language::_("GoGetSSLv2.tab_install.other_installs.http_select", true),
             "dns"   => Language::_("GoGetSSLv2.tab_install.other_installs.dns_select", true),
-            "email" => Language::_("GoGetSSLv2.tab_install.other_installs.email_select", true),
+            "email" => Language::_("GoGetSSLv2.tab_install.other_installs.email_select", true)
         );
         $this->view->set("gogetssl_approver_type", $approver_other);
 
         //removed api call
         //set our webserver types
-        $this->view->set("gogetssl_webserver_types",	$this->getWebserverTypes($package));
-       
+        $this->view->set("gogetssl_webserver_types", $this->getWebserverTypes($service_fields->cert_type));
+        //can we install with other methods
+        $this->view->set("cert_type", $service_fields->cert_type);
 
         $this->view->set("client_id", $service->client_id);
         $this->view->set("service_id", $service->id);
@@ -1535,6 +1550,8 @@ class Gogetsslv2 extends Module
 
 
         }
+
+
         //*******************************HANDLE POST DATA END***********************************/
 
         //RENDER PAGE
@@ -1559,6 +1576,24 @@ class Gogetsslv2 extends Module
         $csr_data = $lib->ifSet($service_fields->gogetssl_csr,false);
 
         $row = $this->getModuleRow($package->module_row);
+
+
+        //small patch for cert_type that was missing should have done as upgrade function this will be removed later
+        if (!isset($service_fields->cert_type)){
+            if (!isset($this->Services))
+                Loader::loadModels($this, array("Services"));
+
+            $api = $this->api($row);
+            $service_fields->cert_type = $this->isComodoCert($api, $package) ? '1' : '2';
+
+            //update our csr code
+            $service_fields_update = $this->ourServiceFields(
+                $lib->serviceFieldMerge($service_fields,    array("cert_type" => $service_fields->cert_type)) ,
+                $service_fields->gogetssl_orderid
+            );
+            $this->Services->setFields($service->id, $service_fields_update);
+        }
+
 
         
         //***************************************CERTIFICATE HAS BEEN INSTALLED*******************************************
@@ -1643,9 +1678,10 @@ class Gogetsslv2 extends Module
         );
         $this->view->set("gogetssl_approver_type", $approver_other);
 
-
-        $this->view->set("gogetssl_webserver_types",	$this->getWebserverTypes($package));
-
+        //pass webserver types
+        $this->view->set("gogetssl_webserver_types", $this->getWebserverTypes($service_fields->cert_type));
+        //pass the cert type
+        $this->view->set("cert_type", $service_fields->cert_type);
        // $this->view->set("gogetssl_fqdn", $service_fields->gogetssl_fqdn);
         //$this->view->set("gogetssl_approver_emails", $this->getApproverEmails($api, $package, $service_fields->gogetssl_fqdn));
         //$this->view->set("vars", $vars);
@@ -1731,12 +1767,8 @@ class Gogetsslv2 extends Module
 	 * @param stdClass $package The package
 	 * @return array A list of products
      */
-	public function getWebserverTypes( $package) {
-
-		$row = $this->getModuleRow($package->module_row);
-        $api = $this->api($row);
-
-		$cert_type = $this->isComodoCert($api, $package) ? '1' : '2';
+    public function getWebserverTypes($cert_type = 1)
+    {
 
         //webserver types
         return Configure::get("gogetsslv2.web_server_types.$cert_type");
@@ -1758,8 +1790,7 @@ class Gogetsslv2 extends Module
 
 			$product = $this->parseResponse($api->getProductDetails($package->meta->gogetssl_product), $row);
 			return $product['product_brand'] == 'comodo';
-		}
-		catch (Exception $e) {
+        } catch (Exception $e) {
 			// Error, invalid authorization
 			$this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
 		}
@@ -1847,8 +1878,7 @@ class Gogetsslv2 extends Module
 			
 			// Remove the errors set
 			$this->Input->setErrors(array());
-		}
-		catch (Exception $e) {
+        } catch (Exception $e) {
 			// Trap any errors encountered, could not validate connection
 		}
 		return false;
@@ -2008,6 +2038,11 @@ class Gogetsslv2 extends Module
                 'key' => "gogetssl_issed",
                 'value' => $this->Html->ifSet($service_fields->gogetssl_issed),
                 'encrypted' => 0
+            ),
+            array(
+                'key' => "cert_type",
+                'value' => $service_fields->cert_type,
+                'encrypted' => 0
             )
         );
     }
@@ -2019,43 +2054,43 @@ class Gogetsslv2 extends Module
      * @param $dataRequest              This contains the package & service requests as an Array
      * @throws GoGetSSLAuthException
      * @return                          JSON of valid server installs
-
-    public function webServerTypes($request,$dataRequest){
-        //parse our request
-        $postRequest    = $request['postRequest'];
-        $getRequest     = $request['getRequest'];
-
-        //get service & packages
-        $package        = $dataRequest['package'];
-        $service        = $dataRequest['service'];
-
-        $lib = $this->getLib();
-
-
-        $row = $this->getModuleRow($package->module_row);
-        $api = $this->api($row);
-
-        $cert_type = $this->isComodoCert($api, $package) ? '1' : '2';
-        //$this->log($row->meta->api_username . "|ssl-webservers", serialize($cert_type), "input", true);
-
-        $response = array('webservers' => array());
-        try {
-            $response = $this->parseResponse($api->getWebservers($cert_type), $row);
-        }
-        catch (Exception $e) {
-            // Error, invalid authorization
-            $this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
-            $lib->sendAjax($e." error ->".print_r($api->getWebservers($cert_type),true),false);
-        }
-
-        $out = array();
-
-        foreach($response['webservers'] AS $value) {
-            $out[$value['id']] = $value['software'];
-        }
-
-        $lib->sendAjax($out);
-    }
+     *
+     * public function webServerTypes($request,$dataRequest){
+     * //parse our request
+     * $postRequest    = $request['postRequest'];
+     * $getRequest     = $request['getRequest'];
+     *
+     * //get service & packages
+     * $package        = $dataRequest['package'];
+     * $service        = $dataRequest['service'];
+     *
+     * $lib = $this->getLib();
+     *
+     *
+     * $row = $this->getModuleRow($package->module_row);
+     * $api = $this->api($row);
+     *
+     * $cert_type = $this->isComodoCert($api, $package) ? '1' : '2';
+     * //$this->log($row->meta->api_username . "|ssl-webservers", serialize($cert_type), "input", true);
+     *
+     * $response = array('webservers' => array());
+     * try {
+     * $response = $this->parseResponse($api->getWebservers($cert_type), $row);
+     * }
+     * catch (Exception $e) {
+     * // Error, invalid authorization
+     * $this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
+     * $lib->sendAjax($e." error ->".print_r($api->getWebservers($cert_type),true),false);
+     * }
+     *
+     * $out = array();
+     *
+     * foreach($response['webservers'] AS $value) {
+     * $out[$value['id']] = $value['software'];
+     * }
+     *
+     * $lib->sendAjax($out);
+     * }
      */
 
     /**
@@ -2104,8 +2139,7 @@ class Gogetsslv2 extends Module
 
             $response = $this->parseResponse($api->getDomainAlternative($csr_data), $row , true);
             //$response = $api->getDomainAlternative($CSR);
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             // Error, invalid authorization
             $this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
             //$lib->sendAjax($e." error ->".var_dump($response),false);
@@ -2170,8 +2204,7 @@ class Gogetsslv2 extends Module
             $response = $api->getDomainEmails($domain);
 
             $gogetssl_approver_emails = $this->parseResponse($response, $row);
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             // Error, invalid authorization
             $this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
         }
