@@ -34,7 +34,8 @@ This is first initial release so please use at your *own risk*, I have done a to
 ####### CHANGELOG #######
 version 1.1.0 
 * fixed [Other Auth Issue](https://github.com/lukesUbuntu/gogetsslv2/issues/2)
-* fixed loading screen on re-issue cert
+* fixed loading screen on re-issue cert tab
+
 version 1.0.9 
 * fixed [Live Issue](https://github.com/lukesUbuntu/gogetsslv2/issues/1)
 * When submitting cert for install shows loading screen
