@@ -163,7 +163,8 @@ var gogetssl_other_methods = {};
             }
         );
         $("#http_method_link").append($link);
-
+        //set http as default method on successful call
+        $("#gogetssl_approver_type").val('http');
         //Just so we don't reload this function again
         $("#http_method").show().addClass('loaded');
     }
@@ -247,6 +248,7 @@ var gogetssl_other_methods = {};
                     //we will hide our aproval email options as this will be meged with alternatives now
                     $("#get_approver_email").hide();
                     $("#getAlternatives").remove();
+
                 }else{
                     console.log("getOtherApprovals : ajax error",typeof response)
                     alert("Failed Reason : "+ response.data);
