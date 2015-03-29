@@ -4,11 +4,11 @@ GoGetSSLv2 version 1.1.0 **BETA**
 
 [**GoGetSSL**](https://www.gogetssl.com) offer's a wide range of SSL certificates and a reseller program.
 
-This module is a extended version of the standard GoGetSSL Blesta Module, alot has been re-written and added :
-* Allows certs to be added after order/purchase
-* Add support for HTTP/DNS Authentaction
-* Can download CSR/PKEY options
-* Can generate CSR Key's
+This module is a extended version of the standard GoGetSSL Blesta Module, alot has been re-written and the main goal is to provide a user friendly certificate module, currently added :
+* Allows certificate to be added after order/purchase
+* Support for EMAIL/HTTP/DNS Authentications
+* Download CSR/PKEY Options
+* Generate CSR
 
 ####### NOTES #######
 This is first initial release so please use at your *own risk*, I have done a ton of *sandbox* testing, and only several **live** testing, please [submit](https://github.com/lukesUbuntu/gogetsslv2/issues) any issues, and check [todo list](#-todo)
@@ -30,6 +30,9 @@ This is first initial release so please use at your *own risk*, I have done a to
 * Add Administration re-issuing of certificate options.
 * Add email tags for when issuing new certificate.
 * Add option to send out email after installation has been completed.
+* Add support for multi-domain certificates (SANs). [#3](https://github.com/lukesUbuntu/gogetsslv2/issues/3)
+* Import previous clients order into module. [#6](https://github.com/lukesUbuntu/gogetsslv2/issues/6)
+
 
 ####### CHANGELOG #######
 version 1.1.0 
