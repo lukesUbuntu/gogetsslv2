@@ -1,4 +1,4 @@
-GoGetSSLv2 version 1.1.0 **BETA**
+GoGetSSLv2 version 1.1.0
 ###GoGetSSLv2 Extended Module For Blesta Billing System
 [**Blesta**](http://www.blesta.com) is a professional web based billing and support application focusing on productivity and usability.
 
