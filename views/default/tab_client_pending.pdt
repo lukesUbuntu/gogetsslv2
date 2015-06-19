@@ -71,7 +71,7 @@
                             Upload the text file to the root of
                              <pre id="http_method_filename" class="alert-info"> <?php echo $gogetssl_csr_fqdn;?></pre>
                             so that the file links to
-                            <span id="http_method_link"></span></span>
+                            <a target="_blank" id="http_method_link"></a></span>
             </div>
         <?php
         }?>
@@ -79,9 +79,35 @@
     </div>
 </div>
 <script>
-    var our_dns_record = '';
-    var comodo_dns = '';
+    //pass the approver method details
+    var $approver_method = JSON.parse('<?php echo $approver_method; ?>');
 
-    $(".dns_method_cname").text(our_dns_record);
-    $(".dns_method_cname_point").text(comodo_dns);
+
+    //only process case if approver is object
+    if (typeof $approver_method == "object")
+        processPage();
+    else
+        console.log("failed $approver_method", $approver_method)
+
+
+    function processPage() {
+
+        switch (Object.keys($approver_method)[0]) {
+            case "http" :
+                console.log("$approver_method", $approver_method.http)
+                $("#http_method_filename").text($approver_method.http.filename);
+                $("#http_method_content").text($approver_method.http.content);
+                $("#http_method_link").text($approver_method.http.link).attr('href', $approver_method.http.link)
+                $("#http_methods_download").attr(
+                    {
+                        'download': $approver_method.http.filename,
+                        'href': 'data:text/plain;charset=UTF-8,' + encodeURIComponent($approver_method.http.content)
+                    }
+                );
+                break;
+            default:
+                console.log("could not render $approver_method", $approver_method);
+                break;
+        }
+    }
 </script>
