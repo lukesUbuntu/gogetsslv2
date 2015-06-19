@@ -173,54 +173,7 @@ class my_module_lib {
         );
     }
 
-    /**
-     * @REMOVED LOCAL CSR TO GOGETSSL API
-     * @name                        createCSR
-     * @description                 Generates a CSR cert
-     * @param $dnDetails            Contains the CSR data to pass to the openssl
-     * @return mixed                Returns the CSR certificate
-     *
-* public function createCSR($dnDetails){
-        * //@todo need to check $csr_output for errors
-        * //any empty values will replace as NA
-        * foreach($dnDetails as $key => $value){
-            * if(!$value)
-                * $dnDetails[$key] = "NA";
-        * }
 
-        *
-* $csr_details = array(
-            * "countryName"               => $dnDetails['gogetssl_csr_country'],
-            * "stateOrProvinceName"       => $dnDetails['gogetssl_csr_state'],
-            * "localityName"              => $dnDetails['gogetssl_csr_locality'],
-            * "organizationName"          => $dnDetails['gogetssl_csr_organization'],
-            * "organizationalUnitName"    => $dnDetails['gogetssl_csr_organization_unit'],
-            * "commonName"                => $dnDetails['gogetssl_csr_fqdn']
-        * );
-
-        *
-* $config = array(
-            * 'private_key_bits' => 2048,
-            * 'digest_alg' => 'sha2',
-            * 'private_key_type' => OPENSSL_KEYTYPE_RSA
-        * );
-
-        *
-* // Generate a new private (and public) key pair
-        * $private_key = openssl_pkey_new($config);
-        * print_r($private_key);
-        * //openssl_csr_new ( array $dn , resource &$privkey [, array $configargs [, array $extraattribs ]] )
-        * $csr = openssl_csr_new($csr_details, $private_key , $config);
-
-
-        *
-*
-* exit;
-        * openssl_csr_export($csr, $csr_output);
-     *
-     * return($csr_output);
-     * }
-     */
     /**
      * @param $content Content to be cleaned for json encoding
      * @return json_encoded string
