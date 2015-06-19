@@ -12,6 +12,7 @@ class GoGetSSLApi
 
   protected $lastStatus;
   protected $lastResponse;
+  protected $cache = false;
 
   public function __construct($sandbox = false, $key = null)
   {
@@ -25,6 +26,12 @@ class GoGetSSLApi
 		$this->URL = 'https://my.gogetssl.com/api';
   }
 
+  public function cacheResults(){
+      $this->cache = true;
+  }
+  public function disableCache(){
+      $this->cache = false;
+  }
   public function auth($user, $pass)
   {
     $response = $this->call('/auth/', array(), array('user' => $user, 'pass' => $pass));
@@ -444,6 +451,19 @@ class GoGetSSLApi
 
   protected function call($uri, $getData = array(), $postData = array(), $forcePost = false, $isFile = false)
   {
+
+      $cache_key = str_replace('/','',trim($uri));
+
+      if (isset($_SESSION[$cache_key])){
+
+          if ($this->cache == true)
+          return $_SESSION[$cache_key];
+          //unset this as we are not storing this
+          //unset($_SESSION[$cache_key]);
+      }
+
+
+
     $url  = $this->URL . $uri;
     if(!empty($getData))
     {
@@ -473,7 +493,14 @@ class GoGetSSLApi
     $status = curl_getinfo($c, CURLINFO_HTTP_CODE);
     curl_close($c);
     $this->lastStatus   = $status;
+
     $this->lastResponse = json_decode($result, true);
+
+      if ($uri != '/auth/' && $this->cache == true){
+
+          $_SESSION[$cache_key] = $this->lastResponse;
+      }
+
     return $this->lastResponse;
   }
 

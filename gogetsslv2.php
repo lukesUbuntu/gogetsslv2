@@ -24,7 +24,8 @@
  * @todo Add Administration re-issuing of certificate options.
  * @todo Add option to send out email after installation has been completed of cert
  * @todo when loading re-issue when loading email need to show loading blesta screen
- * @todo if order is still pending, then re-issue tab should possible be disabled?
+ * @todo if order is still pending, then re-issue tab should possible be disabled?\
+ * @todo on stable release complete finish logging & parsing of api response
  */
 class Gogetsslv2 extends Module
 {
@@ -54,8 +55,8 @@ class Gogetsslv2 extends Module
 
         //load our config file
         Configure::load("gogetsslv2", dirname(__FILE__) . DS . "config" . DS);
-        //error_reporting(E_ALL);
-        //ini_set('display_errors', 1);
+        error_reporting(E_ALL);
+        ini_set('display_errors', 1);
     }
 
     /**
@@ -186,11 +187,28 @@ class Gogetsslv2 extends Module
 
     /*
      * @debug mode
-     * Debug mode, during testing this will capture some API calls and also print_r the value
+     * Debug mode, during testing this will capture some API calls and also help debug calls as i want to capture first instance of the value
      * It will store these into session and will use these instead of requesting new api call to server
      */
-    private $debug_mode = false;
+    private $debug_mode = true;
+    //keeps storage of our responses for debug/inspection
+    private function debug($service_fields,$key,$value = false){
+        $domain = trim($service_fields->gogetssl_fqdn);
+        $key = trim($key);
+        if (empty($key))die("key empty debug_mode");
 
+        if (!isset($_SESSION[$key][$domain]) || empty($_SESSION[$key][$domain]))
+            $_SESSION[$key][$domain] = $value;
+
+        return  $_SESSION[$key][$domain];
+    }
+    private function clearDebug($service_fields,$key){
+        $domain = trim($service_fields->gogetssl_fqdn);
+        $key = trim($key);
+        if (empty($key))die("key empty debug_mode");
+
+        unset( $_SESSION[$key][$domain]);
+    }
     /**
      * Attempts to validate service info. This is the top-level error checking method. Sets Input errors on failure.
      *
@@ -556,6 +574,8 @@ class Gogetsslv2 extends Module
             if ($data['dcv_method'] != "email")
                 unset($data['approver_email']);
 
+            //print_r($data);
+            //exit;
             $this->log($row->meta->api_username . "|ssl-new-order", serialize($data), "input", true);
 
             //make the call
@@ -563,14 +583,18 @@ class Gogetsslv2 extends Module
             if ($this->debug_mode == false){
                 $response = $api->addSSLOrder($data);
             }else{
-                if (!isset($_SESSION['addSSLOrder'])){
-                    $_SESSION['addSSLOrder'] = $api->addSSLOrder($data);
-                }
-                $response = $_SESSION['addSSLOrder'];
+
+
+                if(!isset($_SESSION['addSSLOrder']))
+                $_SESSION['addSSLOrder'] =  $api->addSSLOrder($data);;
+
+                $response =  $_SESSION['addSSLOrder'];
+
+
+                $response = $this->debug($service_fields,'addSSLOrder' ,$response );
             }
 
-
-
+            $this->log($row->meta->api_username . "|ssl-new-order-response", serialize($response), "input", true);
 
                 //$api->addSSLOrder($data);
 
@@ -1232,6 +1256,7 @@ class Gogetsslv2 extends Module
     {
         return array(
             'tabClientReissueAdmin' => Language::_("GoGetSSLv2.tab_reissue", true),
+            'tabClientImport' =>  "Import Order",
         );
     }
 
@@ -1250,7 +1275,7 @@ class Gogetsslv2 extends Module
         return array(
             'tabClientInstall' => array('name' => Language::_("GoGetSSLv2.tab_install", true), 'icon' => "fa fa-chain"),
             'tabClientReissue' => array('name' => Language::_("GoGetSSLv2.tab_reissue", true), 'icon' => "fa fa-chain-broken"),
-            'tabClientCSR' =>  array('name' => Language::_("GoGetSSLv2.tab_csr_generator", true), 'icon' => "fa fa-file-text-o"),
+            'tabClientGenerateCSR' =>  array('name' => Language::_("GoGetSSLv2.tab_csr_generator", true), 'icon' => "fa fa-file-text-o"),
 
         );
 
@@ -1304,7 +1329,7 @@ class Gogetsslv2 extends Module
         $service_fields = $this->serviceFieldsToObject($service->fields);
         $row = $this->getModuleRow($package->module_row);
 
-        //check if we have issued cert yet
+        //POST CHECK CERT INSTALL
         if (!$service_fields->gogetssl_issed){
 
             $link = $this->base_uri . "services/manage/" . $this->Html->ifSet($service->id) . "/tabClientInstall/";
@@ -1312,18 +1337,27 @@ class Gogetsslv2 extends Module
 
         }
 
+        //if ($service_fields->gogetssl_issed) {
+
+            //$cert_install_check = $this->certIsPending($service, $row);
+            if ($this->certIsPending($service, $row) == true) {
+                //return $cert_install_check;
+                return $this->view->fetch();
+            }
+        //}
         //gogetssl_issed
 
         $csr_data = $service_fields->gogetssl_csr;
 
         //render the csr from get install
+        /*@removed this is now been generated by gogetssl api
         if ($lib->isGetRequest($getRequest,array('install_csr')) != false){
             $csr_data = $lib->getRequest($getRequest,'csr_data');
 
             if($csr_data != false)
                 $csr_data = base64_decode($csr_data);
 
-        }
+        }*/
         //$module_row = $this->getModuleRow($package->module_row);
 
 
@@ -1345,7 +1379,7 @@ class Gogetsslv2 extends Module
         $this->view->set("service_id", $service->id);
         $this->view->set("gogetssl_csr_fqdn",$service_fields->gogetssl_fqdn);
         $this->view->set("action_url",	$this->base_uri . "services/manage/" . $service->id . "/tabClientInstall/");
-        $this->view->set("csr_install",	$this->base_uri . "services/manage/" . $service->id . "/tabClientCSR/?tab=tabClientReissue");
+        $this->view->set("csr_install",	$this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/?tab=tabClientReissue");
         $this->view->set("csr_data",	$csr_data);
 
         $this->view->set("post_back",   json_encode($postRequest));
@@ -1402,9 +1436,12 @@ class Gogetsslv2 extends Module
      * @param array $files Any FILES parameters
      * @return string The string representing the contents of this tab
      */
-    public function tabClientCSR($package, $service, array $getRequest = null, array $postRequest = null, array $files = null)
+    public function tabClientGenerateCSR($package, $service, array $getRequest = null, array $postRequest = null, array $files = null)
     {
 
+
+        $this->view = new View("tab_csr_generator", "default");
+        //views/default/tab_csr_generator.pdt
         if ($service->status == "pending"){
             return "Service still pending, has not been activated yet.";
         }
@@ -1435,7 +1472,10 @@ class Gogetsslv2 extends Module
         $response = $this->generateCSR($dataRequest,$packageRequest);
         var_dump($response);exit;
         */
+
+
         $this->view->base_uri = $this->base_uri;
+
         $this->view = new View("tab_csr_generator", "default");
         Loader::loadHelpers($this, array("Form", "Html"));
 
@@ -1445,6 +1485,7 @@ class Gogetsslv2 extends Module
             Loader::loadModels($this, array("Clients","Countries"));
 
         $service_fields = $this->serviceFieldsToObject($service->fields);
+
         $row = $this->getModuleRow($package->module_row);
 
         //retrieve client info
@@ -1458,7 +1499,7 @@ class Gogetsslv2 extends Module
 
         $this->view->set("gogetssl_csr_fqdn",$service_fields->gogetssl_fqdn);
         $this->view->set("gogetssl_csr_email",$client_info->email);
-        $this->view->set("action_url",	$this->base_uri . "services/manage/" . $service->id . "/tabClientCSR/");
+        $this->view->set("action_url",	$this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/");
 
         $this->view->set("install_csr_url", $install_tab);
 
@@ -1574,7 +1615,7 @@ class Gogetsslv2 extends Module
 
         //int our csr data pass false if empty
         $csr_data = $lib->ifSet($service_fields->gogetssl_csr,false);
-
+        //load our row
         $row = $this->getModuleRow($package->module_row);
 
 
@@ -1594,81 +1635,23 @@ class Gogetsslv2 extends Module
             $this->Services->setFields($service->id, $service_fields_update);
         }
 
-
-        
-        //***************************************CERTIFICATE HAS BEEN INSTALLED*******************************************
-        if ($service_fields->gogetssl_issed){
-
-
-            $api = $this->api($row);
-            //$response = false;
-            //$response = $api->getOrderStatus($service_fields->gogetssl_orderid);
-
-            //for testing purposes
-
-            if ($this->debug_mode == false){
-                $response = $api->getOrderStatus($service_fields->gogetssl_orderid);
-            }else{
-                if (!isset($_SESSION['getOrderStatus']) || empty($_SESSION['getOrderStatus'])){
-                    $_SESSION['getOrderStatus'] = $api->getOrderStatus($service_fields->gogetssl_orderid);
-                }
-                $response = $_SESSION['getOrderStatus'];
+        //POST CHECK CERT INSTALL
+        if ($service_fields->gogetssl_issed) {
+          
+            /*
+            $cert_install_check = $this->certIsPending($service, $row);
+            if ($cert_install_check !== true) {
+                return $cert_install_check;
+            }*/
+            //@todo bug $service i not passing service_fields->gogetssl_order id
+            //$cert_install_check = $this->certIsPending($service, $row);
+            if ($this->certIsPending($service, $row) == true) {
+                //return $cert_install_check;
+                return $this->view->fetch();
             }
-
-
-            //print_r($response);
-            $result = $this->parseResponse($response, $row);
-            $csr = $result['csr_code'];
-            $message = '';
-            $install_method = $result['dcv_method'];
-            $status = $result['status'];
-
-            if ($install_method == 'email'){
-                $message = "<p>Certificate details have been sent to ".$result['approver_email']." </p>";
-
-            }
-            if ($install_method == 'http'){
-                $http_details = $result['approver_method']['http'];
-                $file_name      = $http_details['filename'];
-                $file_content   = $http_details['content'];
-                $http_link = $http_details['link'];
-                $message = "<p>1) You need to create file on server named : <pre>$file_name</pre></p><p>2) with the following contents : <pre>$file_content</pre></p> <p>3) This should now link <a href='$http_link' target='_blank'>$http_link</a>";
-
-
-            }
-            if ($install_method == 'dns'){
-                $http_details = $result['approver_method']['dns'];
-                //split has been deprecated from 5.3
-                //$record      = split('CNAME',$http_details['record']);
-                $record = explode("CNAME", $http_details['record']);
-                $our_dns_record = $record[0];
-                $comodo_dns = $record[1];
-                $message = "<p>1) To Authorise create a CNAME record <pre>$our_dns_record</pre><p>2) Point the record to <pre>$comodo_dns</pre></p>";
-            }
-
-            $link = $this->base_uri . "services/manage/" . $this->Html->ifSet($service->id) . "/tabClientReissue/";
-
-            $start_message = "Certificate has already been processed, please go to <a href=\"$link\">re-issue Certificate</a>";
-
-            if ($status == "processing" || $status == "pending" || $status == "new_order" )
-                $start_message = "Order is still processing, please check your install. <h3>".ucfirst($install_method)." Install Method</h3><p>$message</p>";
-
-
-            if ($status == "active"){
-
-                $csr_code = (isset($result['csr_code']))?$result['csr_code'] : '';
-                $crt_code = (isset($result['crt_code']))?$result['crt_code'] : '';
-                $ca_code = (isset($result['ca_code']))?$result['ca_code'] : '';
-                $start_message = "Certificate has already been processed, please go to <a href=\"$link\">re-issue Certificate</a><p><span>CSR CODE</span><pre>$csr_code</pre><p><span>CRT CODE</span></p><pre>$crt_code</pre><p><span>CA CODE</span></p><pre>$ca_code</pre></p>";
-            }
-                //$start_message.= "<h3>".ucfirst($install_method)." Install Method</h3><p>$message</p>";
-
-
-           // print_r($result);
-
-            return "$start_message ";
-
         }
+
+        //***************************************CERTIFICATE HAS NOT BEEN CREATED*******************************************
 
         //default passing to view
         $approver_other = array(
@@ -1692,7 +1675,7 @@ class Gogetsslv2 extends Module
 
         $this->view->set("client",$client_info);
         $this->view->set("action_url",	$this->base_uri . "services/manage/" . $service->id . "/tabClientInstall/");
-        $this->view->set("csr_install",	$this->base_uri . "services/manage/" . $service->id . "/tabClientCSR/?tab=tabClientInstall");
+        $this->view->set("csr_install",	$this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/?tab=tabClientInstall");
         $this->view->set("csr_data",	$csr_data);
         $this->view->set("post_back",   json_encode($postRequest));
 
@@ -1707,6 +1690,150 @@ class Gogetsslv2 extends Module
     }
 
 
+    private function certIsPending($service,$row)
+    {
+        //Set as default pending
+        $isPending = true;
+        //print_r($this->view);exit;
+
+        //return $this->view->fetch();
+        //$tab = ($this->view->file == "tab_client_install") ? "tabClientInstall" : "tabClientReissue";
+
+
+        //pre-define cert as not installed
+
+        $service_fields = $this->serviceFieldsToObject($service->fields);
+
+
+         // Get the service fields & row
+        $api = $this->api($row);
+        //caching results for testing
+        $api->cacheResults();
+
+        $response = $this->parseResponse($api->getOrderStatus($service_fields->gogetssl_orderid) , $row);
+
+            //for testing purposes
+        /*
+            if ($this->debug_mode == false){
+
+
+
+            }else{
+
+                $response = $this->debug($service_fields,'getOrderStatus');
+
+                //$this->clearDebug($service_fields,'getOrderStatus');
+
+                if ($response == false)
+                $response = $this->parseResponse(
+                    $this->debug($service_fields,'getOrderStatus' , $api->getOrderStatus($service_fields->gogetssl_orderid))
+                    ,$row);
+            }
+            */
+
+            //check status of cert
+            if ($response['success'] != true)die("Failed to load response certIsPending ");
+
+            $result = (object) $response;
+
+            //grab the status
+            $status = (isset($result->status)) ? $result->status : false;
+
+            //certificate is active don't continue
+            if ($status == "active") return false;
+
+            $this->view = new View("tab_client_pending", "default");
+            $this->view->base_uri = $this->base_uri;
+            $this->view->set("view", $this->view->view);
+            $this->view->set("gogetssl_csr_fqdn", $service_fields->gogetssl_fqdn);
+            $this->view->set("dcv_method", $result->dcv_method);
+            $this->view->set("result", $result);
+
+            $this->view->setDefaultView("components" . DS . "modules" . DS . "gogetsslv2" . DS);
+
+
+        /*
+                    if ($status != false && $status == "active") return true;
+
+                    if(!$status) return "Failed to get status";
+
+                    $message = '';
+
+                    //switch between auth types
+                    switch($result->dcv_method){
+                        case "email":
+                            $cert_installed = sprintf("<p>Certificate details have been sent to %s </p>",          $result->approver_email);
+                            break;
+                        case "http":
+                            $http_details = $result->approver_method->http;
+                            $cert_installed = sprintf('<p>1) You need to create a file on the server named : <pre>%s</pre></p>
+                                <p>2) with the following contents : <pre>%s</pre></p>
+                                <p>3) This should now link <a href="%s" target="_blank">%3$s</a>',
+                                $http_details->filename,
+                                $http_details->content,
+                                $http_details->link
+                            );
+                            break;
+                        case "dns":
+                            $dns_details = $result->approver_method->dns;
+                            $record = explode("CNAME", $dns_details->record);
+                            $our_dns_record = $record[0];
+                            $comodo_dns = $record[1];
+                            $cert_installed = sprintf('<p>1) To Authorise create a CNAME record <pre>%s</pre></p>
+                                <p>2) Point the record to <pre>%s</pre></p>',
+                                $our_dns_record,
+                                $comodo_dns
+                            );
+                            break;
+                    }
+                    //$install_method = $result['dcv_method'];
+
+
+                    if ($result->dcv_method == 'http'){
+                        $http_details = $result['approver_method']['http'];
+                        $file_name      = $http_details['filename'];
+                        $file_content   = $http_details['content'];
+                        $http_link = $http_details['link'];
+                        $message = "<p>1) You need to create file on server named : <pre>$file_name</pre></p><p>2) with the following contents : <pre>$file_content</pre></p> <p>3) This should now link <a href='$http_link' target='_blank'>$http_link</a>";
+
+
+                    }
+                    if ($result->dcv_method == 'dns'){
+                        $http_details = $result['approver_method']['dns'];
+                        //split has been deprecated from 5.3
+                        //$record      = split('CNAME',$http_details['record']);
+                        $record = explode("CNAME", $http_details['record']);
+                        $our_dns_record = $record[0];
+                        $comodo_dns = $record[1];
+                        $message = "<p>1) To Authorise create a CNAME record <pre>$our_dns_record</pre><p>2) Point the record to <pre>$comodo_dns</pre></p>";
+                    }
+
+                    $link = $this->base_uri . "services/manage/" . $this->Html->ifSet($service->id) . "/".$tab."/";
+
+                    $start_message = "Certificate has already been processed, please go to <a href=\"$link\">re-issue Certificate</a>";
+
+                    if ($status == "processing" || $status == "pending" || $status == "new_order" )
+                        $start_message = "Order is still processing, please check your install. <h3>".ucfirst($result->dcv_method)." Install Method</h3><p>$message</p>";
+
+
+                    if ($status == "active"){
+
+                        $csr_code = (isset($result['csr_code']))?$result['csr_code'] : '';
+                        $crt_code = (isset($result['crt_code']))?$result['crt_code'] : '';
+                        $ca_code = (isset($result['ca_code']))?$result['ca_code'] : '';
+                        $start_message = "Certificate has already been processed, please go to <a href=\"$link\">re-issue Certificate</a><p><span>CSR CODE</span><pre>$csr_code</pre><p><span>CRT CODE</span></p><pre>$crt_code</pre><p><span>CA CODE</span></p><pre>$ca_code</pre></p>";
+                    }
+                    //$start_message.= "<h3>".ucfirst($install_method)." Install Method</h3><p>$message</p>";
+                    */
+
+            // print_r($result);
+
+
+
+
+        //echo $start_message;exit;
+        return true;
+    }
 	
 	/**
 	 * Retrieves a list of products
@@ -1751,6 +1878,7 @@ class Gogetsslv2 extends Module
             $this->_api = new GoGetSSLApi($module_row->meta->sandbox == "true");
 
 
+
             $this->parseResponse($this->_api->auth(
                 $module_row->meta->api_username,
                 $module_row->meta->api_password
@@ -1758,6 +1886,7 @@ class Gogetsslv2 extends Module
             $module_row);
 
         }
+
 
         return $this->_api;
     }
@@ -2122,9 +2251,13 @@ class Gogetsslv2 extends Module
         $domain = $service_fields->gogetssl_fqdn;
 
         if ($this->debug_mode == true)
-        if (isset($_SESSION[$domain]['other_auth']) && !empty($_SESSION[$domain]['other_auth'])){
-            $lib->sendAjax($_SESSION[$domain]['other_auth']);
-        }
+            if (isset($_SESSION[$domain]['other_auth']) && !empty($_SESSION[$domain]['other_auth'])){
+                $lib->sendAjax($_SESSION[$domain]['other_auth']);
+            }
+
+
+
+
 
         $row = $this->getModuleRow($package->module_row);
         $api = $this->api($row);

@@ -1,0 +1,87 @@
+<style>
+    .domain {
+        font-weight: bold;
+    }
+</style>
+
+<div class="row panel-fix">
+    <div class="col-md-12">
+        <span>Your Certificate for <span class="domain"><?php echo $gogetssl_csr_fqdn; ?></span> is still pending authorization</span>
+        Install Method : <?php echo $dcv_method;?>
+        <?php if($dcv_method == "email"){
+            ?>
+            <div id="email" class="form-group">
+
+            </div>
+            <?php
+        }?>
+        <?php if($dcv_method == "email"){
+            ?>
+            <div id="dns" class="form-group">
+                <pre>DNS Installation can take between 1 and 12 hours to confirm</pre>
+                <h3>Check your installation</h3>
+                <hr/>
+                <h3>Instructions</h3>
+                To Authorise create a CNAME record
+                <pre class="form-control dns_method_cname"></pre>
+                and point it to
+                <pre class="alert-info dns_method_cname_point"></pre>
+
+
+
+                <!-- step 1 !-->
+                <h3>Bind9 Example</h3>
+                <hr>
+
+
+                <div class="alert alert-info" role="alert"><span class="dns_method_cname"></span>      IN      CNAME  <span class="dns_method_cname_point"></span></div>
+
+                </hr>
+                <h3>Cloudflare Example</h3>
+                <code>
+                    <span class="pull-left btn btn-warning btn-xs">CNAME</span><span> <span class="dns_method_cname"></span> is an alias <span class="dns_method_cname_point"></span></span>
+                </code>
+                <hr>
+
+
+                </hr>
+            </div>
+        <?php
+        }?>
+        <?php if($dcv_method == "http"){
+            ?>
+            <div id="http" class="form-group">
+                <h3>Instructions</h3>
+                Installing by http or https requires that you upload (FTP) a txt file to your webserver, it needs to be in the root path.
+
+                <!-- step 1 !-->
+                <h3>Step 1</h3>
+
+                Create a text file and name it
+                <pre id="http_method_filename" class="alert-info"></pre>
+                then put the following inside the file
+                <pre id="http_method_content"></pre>
+                or you can
+                <!--- wrap span into button for testing html5 download attribute !-->
+                <a id="http_methods_download" href="#" download=""><span class="btn btn-info btn-xs">Download File</span></a>
+
+                <h3>Step 2</h3>
+
+                        <span>
+                            Upload the text file to the root of
+                             <pre id="http_method_filename" class="alert-info"> <?php echo $gogetssl_csr_fqdn;?></pre>
+                            so that the file links to
+                            <span id="http_method_link"></span></span>
+            </div>
+        <?php
+        }?>
+
+    </div>
+</div>
+<script>
+    var our_dns_record = '';
+    var comodo_dns = '';
+
+    $(".dns_method_cname").text(our_dns_record);
+    $(".dns_method_cname_point").text(comodo_dns);
+</script>
