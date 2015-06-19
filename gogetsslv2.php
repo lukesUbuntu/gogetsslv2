@@ -1333,8 +1333,8 @@ class Gogetsslv2 extends Module
 
         //add our custom javascript
         ///components/modules/gogetssl/views/default/
-        $this->view->set("js_script", "js/" . ($row->meta->sandbox ? "tab_client_install.js" : "tab_client_install.min.js"));
-
+        //$this->view->set("js_script", "js/" . ($row->meta->sandbox ? "tab_client_install.js" : "tab_client_install.min.js"));
+        $this->view->set("js_script", "js/tab_client_install.js");
         //$this->view->set("gogetssl_approver_emails", $this->getApproverEmails($api, $package, $service_fields->gogetssl_fqdn));
 
         //@todo pass install action
@@ -1418,14 +1418,17 @@ class Gogetsslv2 extends Module
         //certificate is active don't continue we dont need to render this view
             if ($status == "active") return false;
 
+        $lib = $this->getLib();
+
             $this->view = new View("tab_client_pending", "default");
             $this->view->base_uri = $this->base_uri;
             $this->view->set("view", $this->view->view);
             $this->view->set("gogetssl_csr_fqdn", $service_fields->gogetssl_fqdn);
             $this->view->set("dcv_method", $result->dcv_method);
-            $this->view->set("result", $result);
+        $this->view->set("approver_method", $lib->encode_json($result->approver_method));
 
             $this->view->setDefaultView("components" . DS . "modules" . DS . "gogetsslv2" . DS);
+
 
 
         /*
@@ -2034,7 +2037,8 @@ class Gogetsslv2 extends Module
 
         //add our custom javascript
         ///components/modules/gogetssl/views/default/
-        $this->view->set("js_script", "js/" . ($row->meta->sandbox ? "tab_client_install.js" : "tab_client_install.min.js"));
+        //$this->view->set("js_script", "js/" . ($row->meta->sandbox ? "tab_client_install.js" : "tab_client_install.min.js"));
+        $this->view->set("js_script", "js/tab_client_install.js");
 
         $this->view->set("view", $this->view->view);
         $this->view->setDefaultView("components" . DS . "modules" . DS . "gogetsslv2" . DS);
