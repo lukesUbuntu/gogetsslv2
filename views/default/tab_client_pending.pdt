@@ -79,6 +79,15 @@
     </div>
 </div>
 <script>
+    var $action_url = '<?php echo $action_url; ?>';
+
+    //check for browser html5 download support
+    var download_support = true;
+    if (typeof document.getElementById('http_methods_download').download == "undefined") {
+        //we will just use serverside to generate download file for http auth
+        console.log("browser doesn't support html5 download attribute using server");
+        download_support = false;
+    }
     //pass the approver method details
     var $approver_method = JSON.parse('<?php echo $approver_method; ?>');
 
@@ -110,4 +119,18 @@
                 break;
         }
     }
+
+
+    //Download file for HTTP aprovals
+    $("#http_methods_download").click(function (e) {
+        if (!download_support) {
+            //this is for non html5 download attribute users http://caniuse.com/#feat=download
+            window.open("?action=http_download&contents=" + encodeURIComponent(gogetssl_other_methods.http.content) + "&file_name=" + encodeURIComponent(gogetssl_other_methods.http.filename)
+                , gogetssl_other_methods.http.filename + " Download",
+                'window settings'
+            );
+            e.preventDefault();
+            return false;
+        }
+    });
 </script>
