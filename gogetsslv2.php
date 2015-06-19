@@ -18,14 +18,14 @@
  * @todo Generate CSR download key options need to be linked in.
  * @todo Fix required install field Title,International Phone number
  * @todo Display CSR,PKEY on client install page as download option
- * @todo Remember form filled content when swapping between CSR Generating to install client tab
  * @todo Fix when submitting install to show blesta loading.
- * @todo final code clean up
  * @todo Add Administration re-issuing of certificate options.
  * @todo Add option to send out email after installation has been completed of cert
  * @todo when loading re-issue when loading email need to show loading blesta screen
  * @todo if order is still pending, then re-issue tab should possible be disabled?\
  * @todo on stable release complete finish logging & parsing of api response
+ * @todo clean up ajax processing within script
+ * @todo final code clean up
  */
 class Gogetsslv2 extends Module
 {
@@ -75,6 +75,7 @@ class Gogetsslv2 extends Module
 
         //load our config file
         Configure::load("gogetsslv2", dirname(__FILE__) . DS . "config" . DS);
+        //added error reporting w
         error_reporting(E_ALL);
         ini_set('display_errors', 1);
     }
@@ -1224,12 +1225,6 @@ class Gogetsslv2 extends Module
 
         );
 
-        //if we can generate CSR add tab    @todo move this as a optional setting for main module
-        /*@moved to gogetssl api generate csr
-        if (extension_loaded('openssl'))
-            $tabs['tabClientCSR'] = array('name' => Language::_("GoGetSSLv2.tab_csr_generator", true), 'icon' => "fa fa-file-text-o");
-        return $tabs;
-        */
     }
 
     /**
@@ -1422,6 +1417,8 @@ class Gogetsslv2 extends Module
 
             $this->view = new View("tab_client_pending", "default");
             $this->view->base_uri = $this->base_uri;
+        //    $action_url
+        $this->view->set("action_url", $this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/");
             $this->view->set("view", $this->view->view);
             $this->view->set("gogetssl_csr_fqdn", $service_fields->gogetssl_fqdn);
             $this->view->set("dcv_method", $result->dcv_method);
@@ -1866,7 +1863,7 @@ class Gogetsslv2 extends Module
 
         $this->view->set("gogetssl_csr_fqdn", $service_fields->gogetssl_fqdn);
         $this->view->set("gogetssl_csr_email", $client_info->email);
-        $this->view->set("action_url", $this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/");
+        //$this->view->set("action_url", $this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/");
 
         $this->view->set("install_csr_url", $install_tab);
 
