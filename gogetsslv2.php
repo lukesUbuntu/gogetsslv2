@@ -41,6 +41,26 @@ class Gogetsslv2 extends Module
         array('name' => "Modified : Luke Hardiman", 'url' => "http://kohatech.co.nz"),
         array('name' => "Phillips Data, Inc.", 'url' => "http://www.blesta.com")
     );
+    /**
+     * Initializes my little library helper that ive been using with blesta modules
+     *
+     * @return my_module_lib instance
+     */
+    private $my_module_lib = false;
+    private $debug_mode = true;
+    /**
+     * Initializes the API and returns a Singleton instance of that object for api calls
+     *
+     * @param stdClass $module_row A stdClass object representing a single reseller (optional, required when Module::getModuleRow() is unavailable)
+     * @return GoGetSSLApi The GoGetSSLApi instance
+     */
+    private $_api = false;
+    /**
+     * Initializes my little ajax handler
+     *
+     * @return my_module_lib instance
+     */
+    //private $gogetssl_ajax_calls = false;
 
     /**
      * Initializes the module
@@ -58,29 +78,6 @@ class Gogetsslv2 extends Module
         error_reporting(E_ALL);
         ini_set('display_errors', 1);
     }
-
-    /**
-     * Initializes my little library helper that ive been using with blesta modules
-     *
-     * @return my_module_lib instance
-     */
-    private $my_module_lib = false;
-
-    public function getLib()
-    {
-        if (!$this->my_module_lib) {
-            Loader::load(dirname(__FILE__) . DS . "libs" . DS . "my_module_lib.php");
-            $this->my_module_lib = new my_module_lib();
-        }
-
-        return $this->my_module_lib;
-    }
-    /**
-     * Initializes my little ajax handler
-     *
-     * @return my_module_lib instance
-     */
-    //private $gogetssl_ajax_calls = false;
 
     /**
      * Returns the name of this module
@@ -168,6 +165,12 @@ class Gogetsslv2 extends Module
         return "gogetssl_name";
     }
 
+    /*
+     * @debug mode
+     * Debug mode, during testing this will capture some API calls and also help debug calls as i want to capture first instance of the value
+     * It will store these into session and will use these instead of requesting new api call to server
+     */
+
     /**
      * Returns the value used to identify a particular package service which has
      * not yet been made into a service. This may be used to uniquely identify
@@ -184,196 +187,7 @@ class Gogetsslv2 extends Module
             return $vars['gogetssl_name'];
         return null;
     }
-
-    /*
-     * @debug mode
-     * Debug mode, during testing this will capture some API calls and also help debug calls as i want to capture first instance of the value
-     * It will store these into session and will use these instead of requesting new api call to server
-     */
-    private $debug_mode = true;
     //keeps storage of our responses for debug/inspection
-    private function debug($service_fields,$key,$value = false){
-        $domain = trim($service_fields->gogetssl_fqdn);
-        $key = trim($key);
-        if (empty($key))die("key empty debug_mode");
-
-        if (!isset($_SESSION[$key][$domain]) || empty($_SESSION[$key][$domain]))
-            $_SESSION[$key][$domain] = $value;
-
-        return  $_SESSION[$key][$domain];
-    }
-    private function clearDebug($service_fields,$key){
-        $domain = trim($service_fields->gogetssl_fqdn);
-        $key = trim($key);
-        if (empty($key))die("key empty debug_mode");
-
-        unset( $_SESSION[$key][$domain]);
-    }
-    /**
-     * Attempts to validate service info. This is the top-level error checking method. Sets Input errors on failure.
-     *
-     * @param stdClass $package A stdClass object representing the selected package
-     * @param array $vars An array of user supplied info to satisfy the request
-     * @param boolean False if we are adding a service by default we need to unset some rules
-     * @return boolean True if the service validates, false otherwise. Sets Input errors when false.
-     */
-    public function validateService($package, array $vars = null, $editService = false)
-    {
-
-
-        // Set rules
-        $rules = array(
-			'gogetssl_approver_email' => array(
-				'format' => array(
-					'rule' => "isEmail",
-					'message' => Language::_("GoGetSSLv2.!error.gogetssl_approver_email.format", true)
-				)
-			),
-			'gogetssl_csr' => array(
-				'format' => array(
-					'rule' => "isEmpty",
-					'negate' => true,
-					'message' => Language::_("GoGetSSLv2.!error.gogetssl_csr.format", true)
-				)
-			),
-			'gogetssl_webserver_type' => array(
-				'format' => array(
-					'rule' => "isEmpty",
-					'negate' => true,
-					'message' => Language::_("GoGetSSLv2.!error.gogetssl_webserver_type.format", true)
-				)
-			),
-            'gogetssl_fqdn' => array(
-                'format' => array(
-                    'rule' => "isEmpty",
-                    'negate' => true,
-                    'message' => Language::_("GoGetSSLv2.!error.gogetssl_fqdn.format", true)
-                )
-            )
-        );
-        //if we are adding service we can unset some of our rules but not if we are editing service
-        if (!$editService) {
-            //as we are NOT editing we are going to unset some rules
-            /*
-            $rules['gogetssl_fqdn'] = array(
-                'format' => array(
-                    'rule' => "isEmpty",
-                    'negate' => true,
-                    'message' => Language::_("GoGetSSLv2.!error.gogetssl_fqdn.format", true)
-                )
-            );*/
-            unset($rules['gogetssl_approver_email']);
-            unset($rules['gogetssl_csr']);
-            unset($rules['gogetssl_webserver_type']);
-
-        }
-        //if we are not validating by email unset email rule
-        if (isset($vars['gogetssl_approver_type']) && $vars['gogetssl_approver_type'] != "email")
-            unset($rules['gogetssl_approver_email']);
-
-        $this->Input->setRules($rules);
-        return $this->Input->validates($vars);
-    }
-
-
-    /**
-     * @description Passes a postrequest and returns valid entries for our META row
-     * @param $service_fields
-     * @param $postRequest
-     * @return array
-     */
-    private function getVarPost($service_fields , $postRequest ){
-        
-        return array(
-                "gogetssl_approver_email"   => $postRequest["gogetssl_approver_email"],
-                "gogetssl_fqdn"             => $service_fields->gogetssl_fqdn,
-                "gogetssl_webserver_type"   => $postRequest["gogetssl_webserver_type"],
-                "gogetssl_csr"              => $postRequest["gogetssl_csr"],
-                "gogetssl_approver_type"    => $postRequest["gogetssl_approver_type"],
-                "gogetssl_title"            => $postRequest["gogetssl_title"],
-                "gogetssl_firstname"        => $postRequest["gogetssl_firstname"],
-                "gogetssl_lastname"         => $postRequest["gogetssl_lastname"],
-                "gogetssl_address1"         => $postRequest["gogetssl_address1"],
-                "gogetssl_address2"         => $postRequest["gogetssl_address2"],
-                "gogetssl_city"             => $postRequest["gogetssl_city"],
-                "gogetssl_zip"              => $postRequest["gogetssl_zip"],
-                "gogetssl_state"            => $postRequest["gogetssl_state"],
-                "gogetssl_country"          => $postRequest["gogetssl_country"],
-                "gogetssl_email"            => $postRequest["gogetssl_email"],
-                "gogetssl_number"           => $postRequest["gogetssl_number"],
-                "gogetssl_fax"              => $postRequest["gogetssl_fax"],
-                "gogetssl_organization"     => $postRequest["gogetssl_organization"],
-                "gogetssl_organization_unit"=> $postRequest["gogetssl_organization_unit"]
-
-        );
-    }
-    /**
-     * Fills SSL data for order API calls from given vars
-     *
-     * @param stdClass $package The package
-     * @param integer $client_id The ID of the client
-     * @param mixed $vars Array or object representing user input
-     * @param mixed $vars Array or object representing user input
-     * @return mixed $postData data from POSTdata
-     */
-    private function fillSSLDataFrom($package, $client_id, $vars) {
-        $vars = (object)$vars;
-
-        $period = 12;
-        foreach($package->pricing as $pricing) {
-
-            if ($pricing->id == $vars->pricing_id) {
-                if($pricing->period == 'month')
-                    $period = $pricing->term;
-                elseif($pricing->period == 'year')
-                    $period = $pricing->term * 12;
-                break;
-            }
-        }
-
-        $data = array(
-            'product_id' => $package->meta->gogetssl_product,
-            'csr' => $vars->gogetssl_csr,
-            'server_count' => "-1",
-            'period' => $period,
-            //approval settings
-            'approver_email' => $vars->gogetssl_approver_email,
-            'webserver_type' => $vars->gogetssl_webserver_type,
-            'dcv_method'     => $vars->gogetssl_approver_type,
-
-            'admin_firstname' => $vars->gogetssl_firstname,
-            'admin_lastname' => $vars->gogetssl_lastname,
-            'admin_phone' => $vars->gogetssl_number,
-            'admin_title' => $vars->gogetssl_title,
-            'admin_email' => $vars->gogetssl_email,
-            'admin_city' => $vars->gogetssl_city,
-            'admin_country' => $vars->gogetssl_country,
-            'admin_organization' => $vars->gogetssl_organization,
-            'admin_fax' => $vars->gogetssl_fax,
-
-            'tech_firstname' => $vars->gogetssl_firstname,
-            'tech_lastname' => $vars->gogetssl_lastname,
-            'tech_phone' => $vars->gogetssl_number,
-            'tech_title' => $vars->gogetssl_title,
-            'tech_email' => $vars->gogetssl_email,
-            'tech_city' => $vars->gogetssl_city,
-            'tech_country' => $vars->gogetssl_country,
-            'tech_organization' => $vars->gogetssl_organization,
-            'tech_fax' => $vars->gogetssl_fax,
-
-            'org_name' => $vars->gogetssl_organization,
-            'org_division' => $vars->gogetssl_organization_unit,
-            'org_addressline1' => $vars->gogetssl_address1,
-            'org_addressline2' => $vars->gogetssl_address2,
-            'org_city' => $vars->gogetssl_city,
-            'org_country' => $vars->gogetssl_country,
-            'org_phone' => $vars->gogetssl_number,
-            'org_postalcode' => $vars->gogetssl_zip,
-            'org_region' => $vars->gogetssl_state
-        );
-
-        return $data;
-    }
 
     /**
      * Adds the service to the remote server. Sets Input errors on failure,
@@ -524,147 +338,168 @@ class Gogetsslv2 extends Module
     }
 
     /**
-     * Edits the service on the remote server. Sets Input errors on failure,
-     * preventing the service from being edited.
+     * Attempts to validate service info. This is the top-level error checking method. Sets Input errors on failure.
      *
-     * @param stdClass $package A stdClass object representing the current package
-     * @param stdClass $service A stdClass object representing the current service
+     * @param stdClass $package A stdClass object representing the selected package
      * @param array $vars An array of user supplied info to satisfy the request
-     * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
-     * @param stdClass $parent_service A stdClass object representing the parent service of the service being edited (if the current service is an addon service)
-     * @return array A numerically indexed array of meta fields to be stored for this service containing:
-     *    - key The key for this meta field
-     *    - value The value for this key
-     *    - encrypted Whether or not this field should be encrypted (default 0, not encrypted)
-     * @see Module::getModule()
-     * @see Module::getModuleRow()
+     * @param boolean False if we are adding a service by default we need to unset some rules
+     * @return boolean True if the service validates, false otherwise. Sets Input errors when false.
      */
-    public function editService($package, $service, array $vars = array(), $parent_package = null, $parent_service = null)
+    public function validateService($package, array $vars = null, $editService = false)
     {
-        //define as default installed
 
 
-        // Validate the service-specific fields
-        $this->validateService($package, $vars , true);
+        // Set rules
+        $rules = array(
+            'gogetssl_approver_email' => array(
+                'format' => array(
+                    'rule' => "isEmail",
+                    'message' => Language::_("GoGetSSLv2.!error.gogetssl_approver_email.format", true)
+                )
+            ),
+            'gogetssl_csr' => array(
+                'format' => array(
+                    'rule' => "isEmpty",
+                    'negate' => true,
+                    'message' => Language::_("GoGetSSLv2.!error.gogetssl_csr.format", true)
+                )
+            ),
+            'gogetssl_webserver_type' => array(
+                'format' => array(
+                    'rule' => "isEmpty",
+                    'negate' => true,
+                    'message' => Language::_("GoGetSSLv2.!error.gogetssl_webserver_type.format", true)
+                )
+            ),
+            'gogetssl_fqdn' => array(
+                'format' => array(
+                    'rule' => "isEmpty",
+                    'negate' => true,
+                    'message' => Language::_("GoGetSSLv2.!error.gogetssl_fqdn.format", true)
+                )
+            )
+        );
+        //if we are adding service we can unset some of our rules but not if we are editing service
+        if (!$editService) {
+            //as we are NOT editing we are going to unset some rules
+            /*
+            $rules['gogetssl_fqdn'] = array(
+                'format' => array(
+                    'rule' => "isEmpty",
+                    'negate' => true,
+                    'message' => Language::_("GoGetSSLv2.!error.gogetssl_fqdn.format", true)
+                )
+            );*/
+            unset($rules['gogetssl_approver_email']);
+            unset($rules['gogetssl_csr']);
+            unset($rules['gogetssl_webserver_type']);
 
-        if ($this->Input->errors())
-            return;
+        }
+        //if we are not validating by email unset email rule
+        if (isset($vars['gogetssl_approver_type']) && $vars['gogetssl_approver_type'] != "email")
+            unset($rules['gogetssl_approver_email']);
 
-        $row = $this->getModuleRow($package->module_row);
+        $this->Input->setRules($rules);
+        return $this->Input->validates($vars);
+    }
 
-        $api = $this->api($row);
+    private function api($module_row = false)
+    {
+        if ($this->_api == false) {
 
-        $service_fields = $this->serviceFieldsToObject($service->fields);
+            //if module_row was not passed will try retrieve
+            if ($module_row == false || !isset($module_row))
+                $module_row = $this->getModuleRow();
 
-
-
-
-        //check if we have installed cert yet
-        if ($service_fields->gogetssl_issed == false && $vars["use_module"] == "true")
-        {
-            //check install_cert from gogetssl
-            //install cert
-            $data = $this->fillSSLDataFrom($package, (isset($vars['client_id']) ? $vars['client_id'] : ""), $vars);
-
-            //force dcv_method for email validation for non comodo certs
-            if ($service_fields->cert_type == 2)
-                $data['dcv_method'] = "email";
-
-            //if we are not using email auth we need to unset approver email to force transaction
-            if ($data['dcv_method'] != "email")
-                unset($data['approver_email']);
-
-            //print_r($data);
-            //exit;
-            $this->log($row->meta->api_username . "|ssl-new-order", serialize($data), "input", true);
-
-            //make the call
-            //for testing
-            if ($this->debug_mode == false){
-                $response = $api->addSSLOrder($data);
-            }else{
-
-
-                if(!isset($_SESSION['addSSLOrder']))
-                $_SESSION['addSSLOrder'] =  $api->addSSLOrder($data);;
-
-                $response =  $_SESSION['addSSLOrder'];
-
-
-                $response = $this->debug($service_fields,'addSSLOrder' ,$response );
+            if (!isset($module_row)) {
+                die ("failed to load api (module row issue)");
             }
 
-            $this->log($row->meta->api_username . "|ssl-new-order-response", serialize($response), "input", true);
+            Loader::load(dirname(__FILE__) . DS . "apis" . DS . "GoGetSSLApi.php");
 
-                //$api->addSSLOrder($data);
-
-
-            //$response = $api->addSSLOrder($data);
-            $result = $this->parseResponse($response, $row);
-
-            if ($row->meta->sandbox == true && $this->Input->errors()){
-                if(preg_match('/Such certificate already exists \(Order ID: (\d+)/',$response['description'], $matches)){
-                    $result['order_id'] = $matches[1];
-                    $this->Input->setErrors(array());
-                }
-
-                //check for errors
-
-            }else{
-                //check for errors
-                if ($this->Input->errors())
-                    return;
-            }
+            $this->_api = new GoGetSSLApi($module_row->meta->sandbox == "true");
 
 
+            $this->parseResponse($this->_api->auth(
+                $module_row->meta->api_username,
+                $module_row->meta->api_password
+            ),
+                $module_row);
 
-            if(empty($result)) {
-                return;
-            }
-
-            if(isset($result['order_id'])) {
-                $order_id = $result['order_id'];
-                $this->log($row->meta->api_username . "|ssl-activate", serialize($order_id), "input", true);
-                //$this->parseResponse($api->activateSSLOrder($order_id), $row); //depreicated GetOrderStatus
-
-                //Update that we have installed the cert
-               $service_fields->gogetssl_issed = true;
-
-            }
-
-        }else  if ($vars["use_module"] == "true" && $service_fields->gogetssl_issed == true) {
-            $order_id = $service_fields->gogetssl_orderid;
-
-            $data = array(
-                'csr'               => $vars["gogetssl_csr"],
-                'approver_email'    => $vars["gogetssl_approver_email"],
-                'webserver_type'    => $vars["gogetssl_webserver_type"],
-                'dcv_method'        => $vars["gogetssl_approver_type"]
-            );
-
-            $this->log($row->meta->api_username . "|ssl-reissue", serialize($data), "input", true);
-            $response = $api->reIssueOrder($service_fields->gogetssl_orderid, $data);
-
-            $result = $this->parseResponse($response, $row);
-            //this could be due to cert not actually installed or domain/auth method has not been done
-            //    [description] => Order can't be processed with reissue procedure!
-
-            if ($this->Input->errors())
-                return;
-
-            if (empty($result)) {
-                return;
-            }
-
-            if (isset($result['order_id'])) {
-                $order_id = $result['order_id'];
-                $this->log($row->meta->api_username . "|ssl-activate", serialize($order_id), "input", true);
-                //$this->parseResponse($api->activateSSLOrder($order_id), $row);
-            }
         }
 
 
-        return $this->ourServiceFields($service_fields, $order_id);
+        return $this->_api;
+    }
+
+    /**
+     * Parses the response from GoGetSsl into an stdClass object
+     *
+     * @param mixed $response The response from the API
+     * @param stdClass $module_row A stdClass object representing a single reseller (optional, required when Module::getModuleRow() is unavailable)
+     * @param boolean $ignore_error Ignores any response error and returns the response anyway; useful when a response is expected to fail (e.g. check client exists) (optional, default false)
+     * @return stdClass A stdClass object representing the response, void if the response was an error
+     */
+    public function parseResponse($response, $module_row = null, $ignore_error = false)
+    {
+        Loader::loadHelpers($this, array("Html"));
+
+        // Set the module row
+        if (!$module_row)
+            $module_row = $this->getModuleRow();
+
+        $success = true;
+
+        if (empty($response) || !empty($response['error'])) {
+            $success = false;
+            $error = (isset($response['description'])) ? $response['description'] : Language::_("GoGetSSLv2.!error.api.internal", true);
+
+
+            if (!$ignore_error)
+                $this->Input->setErrors(
+                    array('api' =>
+                        array('internal' =>
+                            $error
+                        )
+                    )
+                );
+            //$this->Input->setErrors(array('errors' => $error));
+
+
+            //$this->Input->setErrors(array('api' => array('internal' => $error)));
+
+        }
+
+        $this->log($module_row->meta->api_username, serialize($response), "output", $success);
+
+        if (!$success && !$ignore_error)
+            return;
+
+        return $response;
+    }
+
+    /**
+     * Returns if package's certificate vendor is a COMODO cert or not
+     *
+     * @param GoGetSslApi $api the API to use
+     * @param stdClass $package The package
+     * @return boolean If it is COMODO
+     */
+    public function isComodoCert($api, $package)
+    {
+        //@todo once we have purchased a cert we should store some details into config for so many days not recall api
+        $row = $this->getModuleRow($package->module_row);
+
+        $this->log($row->meta->api_username . "|ssl-is-comodo-cert", serialize($package->meta->gogetssl_product), "input", true);
+        try {
+
+            $product = $this->parseResponse($api->getProductDetails($package->meta->gogetssl_product), $row);
+            return $product['product_brand'] == 'comodo';
+        } catch (Exception $e) {
+            // Error, invalid authorization
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
+        }
+        return false;
     }
 
     /**
@@ -777,6 +612,75 @@ class Gogetsslv2 extends Module
     }
 
     /**
+     * Fills SSL data for order API calls from given vars
+     *
+     * @param stdClass $package The package
+     * @param integer $client_id The ID of the client
+     * @param mixed $vars Array or object representing user input
+     * @param mixed $vars Array or object representing user input
+     * @return mixed $postData data from POSTdata
+     */
+    private function fillSSLDataFrom($package, $client_id, $vars)
+    {
+        $vars = (object)$vars;
+
+        $period = 12;
+        foreach ($package->pricing as $pricing) {
+
+            if ($pricing->id == $vars->pricing_id) {
+                if ($pricing->period == 'month')
+                    $period = $pricing->term;
+                elseif ($pricing->period == 'year')
+                    $period = $pricing->term * 12;
+                break;
+            }
+        }
+
+        $data = array(
+            'product_id' => $package->meta->gogetssl_product,
+            'csr' => $vars->gogetssl_csr,
+            'server_count' => "-1",
+            'period' => $period,
+            //approval settings
+            'approver_email' => $vars->gogetssl_approver_email,
+            'webserver_type' => $vars->gogetssl_webserver_type,
+            'dcv_method' => $vars->gogetssl_approver_type,
+
+            'admin_firstname' => $vars->gogetssl_firstname,
+            'admin_lastname' => $vars->gogetssl_lastname,
+            'admin_phone' => $vars->gogetssl_number,
+            'admin_title' => $vars->gogetssl_title,
+            'admin_email' => $vars->gogetssl_email,
+            'admin_city' => $vars->gogetssl_city,
+            'admin_country' => $vars->gogetssl_country,
+            'admin_organization' => $vars->gogetssl_organization,
+            'admin_fax' => $vars->gogetssl_fax,
+
+            'tech_firstname' => $vars->gogetssl_firstname,
+            'tech_lastname' => $vars->gogetssl_lastname,
+            'tech_phone' => $vars->gogetssl_number,
+            'tech_title' => $vars->gogetssl_title,
+            'tech_email' => $vars->gogetssl_email,
+            'tech_city' => $vars->gogetssl_city,
+            'tech_country' => $vars->gogetssl_country,
+            'tech_organization' => $vars->gogetssl_organization,
+            'tech_fax' => $vars->gogetssl_fax,
+
+            'org_name' => $vars->gogetssl_organization,
+            'org_division' => $vars->gogetssl_organization_unit,
+            'org_addressline1' => $vars->gogetssl_address1,
+            'org_addressline2' => $vars->gogetssl_address2,
+            'org_city' => $vars->gogetssl_city,
+            'org_country' => $vars->gogetssl_country,
+            'org_phone' => $vars->gogetssl_number,
+            'org_postalcode' => $vars->gogetssl_zip,
+            'org_region' => $vars->gogetssl_state
+        );
+
+        return $data;
+    }
+
+    /**
      * Updates the package for the service on the remote server. Sets Input
      * errors on failure, preventing the service's package from being changed.
      *
@@ -829,6 +733,27 @@ class Gogetsslv2 extends Module
         }
 
         return $meta;
+    }
+
+    /**
+     * Retrieves a list of rules for validating adding/editing a package
+     *
+     * @param array $vars A list of input vars
+     * @return array A list of rules
+     */
+    private function getPackageRules(array $vars = null)
+    {
+        $rules = array(
+            'meta[gogetssl_product]' => array(
+                'empty' => array(
+                    'rule' => "isEmpty",
+                    'negate' => true,
+                    'message' => Language::_("GoGetSSLv2.!error.meta[gogetssl_product].valid", true)
+                )
+            )
+        );
+
+        return $rules;
     }
 
     /**
@@ -957,6 +882,23 @@ class Gogetsslv2 extends Module
     }
 
     /**
+     * Edits the module row on the remote server. Sets Input errors on failure,
+     * preventing the row from being updated.
+     *
+     * @param stdClass $module_row The stdClass representation of the existing module row
+     * @param array $vars An array of module info to update
+     * @return array A numerically indexed array of meta fields for the module row containing:
+     *    - key The key for this meta field
+     *    - value The value for this key
+     *    - encrypted Whether or not this field should be encrypted (default 0, not encrypted)
+     */
+    public function editModuleRow($module_row, array &$vars)
+    {
+        // Same as adding
+        return $this->addModuleRow($vars);
+    }
+
+    /**
      * Adds the module row on the remote server. Sets Input errors on failure,
      * preventing the row from being added.
      *
@@ -997,20 +939,41 @@ class Gogetsslv2 extends Module
     }
 
     /**
-     * Edits the module row on the remote server. Sets Input errors on failure,
-     * preventing the row from being updated.
+     * Retrieves a list of rules for validating adding/editing a module row
      *
-     * @param stdClass $module_row The stdClass representation of the existing module row
-     * @param array $vars An array of module info to update
-     * @return array A numerically indexed array of meta fields for the module row containing:
-     *    - key The key for this meta field
-     *    - value The value for this key
-     *    - encrypted Whether or not this field should be encrypted (default 0, not encrypted)
+     * @param array $vars A list of input vars
+     * @return array A list of rules
      */
-    public function editModuleRow($module_row, array &$vars)
+    private function getRowRules(array &$vars)
     {
-        // Same as adding
-        return $this->addModuleRow($vars);
+        return array(
+            'api_username' => array(
+                'empty' => array(
+                    'rule' => "isEmpty",
+                    'negate' => true,
+                    'message' => Language::_("GoGetSSLv2.!error.api_username.empty", true)
+                ),
+                'valid' => array(
+                    'rule' => array(array($this, "validateConnection"), $vars),
+                    'message' => Language::_("GoGetSSLv2.!error.api_username.valid", true)
+                )
+            ),
+            'api_password' => array(
+                'empty' => array(
+                    'rule' => "isEmpty",
+                    'negate' => true,
+                    'message' => Language::_("GoGetSSLv2.!error.api_password.empty", true)
+                )
+            ),
+            'gogetssl_name' => array(
+                'empty' => array(
+                    'rule' => "isEmpty",
+                    'negate' => true,
+                    'message' => Language::_("GoGetSSLv2.!error.gogetssl_name.empty", true)
+                )
+            ),
+            'sandbox' => array()
+        );
     }
 
     /**
@@ -1080,6 +1043,27 @@ class Gogetsslv2 extends Module
     }
 
     /**
+     * Retrieves a list of products
+     *
+     * @param GoGetSslApi $api the API to use
+     * @param stdClass $module_row A stdClass object representing a single reseller (optional, required when Module::getModuleRow() is unavailable)
+     * @return array A list of products
+     */
+    private function getProducts($api, $module_row)
+    {
+        $this->log($module_row->meta->api_username . "|ssl-products", '', "input", true);
+        $res = $this->parseResponse($api->getAllProducts(), $module_row);
+
+        $out = array();
+
+        foreach ($res['products'] AS $value) {
+            $out[$value['id']] = $value['name'];
+        }
+
+        return $out;
+    }
+
+    /**
      * Returns an array of key values for fields stored for a module, package,
      * and service under this module, used to substitute those keys with their
      * actual module, package, or service meta values in related emails.
@@ -1110,40 +1094,16 @@ class Gogetsslv2 extends Module
     }
 
     /**
-     * Returns array of valid approver E-Mails for domain
+     * Returns all fields to display to an admin attempting to add a service with the module
      *
-     * @param GoGetSslApi $api the API to use
-     * @param stdClass $package The package
-     * @param string $domain The domain
-     * @return array E-Mails that are valid approvers for the domain
+     * @param stdClass $package A stdClass object representing the selected package
+     * @param $vars stdClass A stdClass object representing a set of post fields
+     * @return ModuleFields A ModuleFields object, containg the fields to render as well as any additional HTML markup to include
      */
-    private function getApproverEmails($api, $package, $domain)
+    public function getAdminAddFields($package, $vars = null)
     {
-        if (empty($domain))
-            return array();
 
-        $row = $this->getModuleRow($package->module_row);
-        $this->log($row->meta->api_username . "|ssl-domain-emails", serialize($domain), "input", true);
-
-        $gogetssl_approver_emails = array();
-        try {
-            $gogetssl_approver_emails = $this->parseResponse($api->getDomainEmails($domain), $row);
-        } catch (Exception $e) {
-            // Error, invalid authorization
-            $this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
-        }
-
-        $emails = array();
-        if ($this->isComodoCert($api, $package) && isset($gogetssl_approver_emails['ComodoApprovalEmails']))
-            $emails = $gogetssl_approver_emails['ComodoApprovalEmails'];
-        elseif (isset($gogetssl_approver_emails['GeotrustApprovalEmails']))
-            $emails = $gogetssl_approver_emails['GeotrustApprovalEmails'];
-
-        $formatted_emails = array();
-        foreach ($emails as $email)
-            $formatted_emails[$email] = $email;
-
-        return $formatted_emails;
+        return $this->makeAddFields($package, $vars);
     }
 
     /**
@@ -1161,7 +1121,7 @@ class Gogetsslv2 extends Module
 
         // Load the API
         //$row = $this->getModuleRow($package->module_row);
-       // $api = $this->api($row);
+        // $api = $this->api($row);
 
         $fields = new ModuleFields();
 
@@ -1184,19 +1144,6 @@ class Gogetsslv2 extends Module
         unset($gogetssl_fqdn);
         return $fields;
 
-    }
-
-    /**
-     * Returns all fields to display to an admin attempting to add a service with the module
-     *
-     * @param stdClass $package A stdClass object representing the selected package
-     * @param $vars stdClass A stdClass object representing a set of post fields
-     * @return ModuleFields A ModuleFields object, containg the fields to render as well as any additional HTML markup to include
-     */
-    public function getAdminAddFields($package, $vars = null)
-    {
-
-        return $this->makeAddFields($package, $vars);
     }
 
     /**
@@ -1256,11 +1203,9 @@ class Gogetsslv2 extends Module
     {
         return array(
             'tabClientReissueAdmin' => Language::_("GoGetSSLv2.tab_reissue", true),
-            'tabClientImport' =>  "Import Order",
+            'tabClientImport' => "Import Order",
         );
     }
-
-
 
     /**
      * Returns all tabs to display to a client when managing a service whose
@@ -1275,7 +1220,7 @@ class Gogetsslv2 extends Module
         return array(
             'tabClientInstall' => array('name' => Language::_("GoGetSSLv2.tab_install", true), 'icon' => "fa fa-chain"),
             'tabClientReissue' => array('name' => Language::_("GoGetSSLv2.tab_reissue", true), 'icon' => "fa fa-chain-broken"),
-            'tabClientGenerateCSR' =>  array('name' => Language::_("GoGetSSLv2.tab_csr_generator", true), 'icon' => "fa fa-file-text-o"),
+            'tabClientGenerateCSR' => array('name' => Language::_("GoGetSSLv2.tab_csr_generator", true), 'icon' => "fa fa-file-text-o"),
 
         );
 
@@ -1286,6 +1231,7 @@ class Gogetsslv2 extends Module
         return $tabs;
         */
     }
+
     /**
      * Reissue tab
      *
@@ -1300,6 +1246,7 @@ class Gogetsslv2 extends Module
     {
         return "Sorry this is still to be implemented";
     }
+
     /**
      * Reissue tab
      *
@@ -1330,7 +1277,7 @@ class Gogetsslv2 extends Module
         $row = $this->getModuleRow($package->module_row);
 
         //POST CHECK CERT INSTALL
-        if (!$service_fields->gogetssl_issed){
+        if (!$service_fields->gogetssl_issed) {
 
             $link = $this->base_uri . "services/manage/" . $this->Html->ifSet($service->id) . "/tabClientInstall/";
             return "Certificate has not been installed yet, please go to <a href=\"$link\">Install Certificate</a>";
@@ -1339,11 +1286,11 @@ class Gogetsslv2 extends Module
 
         //if ($service_fields->gogetssl_issed) {
 
-            //$cert_install_check = $this->certIsPending($service, $row);
-            if ($this->certIsPending($service, $row) == true) {
-                //return $cert_install_check;
-                return $this->view->fetch();
-            }
+        //$cert_install_check = $this->certIsPending($service, $row);
+        if ($this->certIsPending($service, $row) == true) {
+            //return $cert_install_check;
+            return $this->view->fetch();
+        }
         //}
         //gogetssl_issed
 
@@ -1363,8 +1310,8 @@ class Gogetsslv2 extends Module
 
         //set our variables in template
         $approver_other = array(
-            "http"  => Language::_("GoGetSSLv2.tab_install.other_installs.http_select", true),
-            "dns"   => Language::_("GoGetSSLv2.tab_install.other_installs.dns_select", true),
+            "http" => Language::_("GoGetSSLv2.tab_install.other_installs.http_select", true),
+            "dns" => Language::_("GoGetSSLv2.tab_install.other_installs.dns_select", true),
             "email" => Language::_("GoGetSSLv2.tab_install.other_installs.email_select", true)
         );
         $this->view->set("gogetssl_approver_type", $approver_other);
@@ -1377,32 +1324,32 @@ class Gogetsslv2 extends Module
 
         $this->view->set("client_id", $service->client_id);
         $this->view->set("service_id", $service->id);
-        $this->view->set("gogetssl_csr_fqdn",$service_fields->gogetssl_fqdn);
-        $this->view->set("action_url",	$this->base_uri . "services/manage/" . $service->id . "/tabClientInstall/");
-        $this->view->set("csr_install",	$this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/?tab=tabClientReissue");
-        $this->view->set("csr_data",	$csr_data);
+        $this->view->set("gogetssl_csr_fqdn", $service_fields->gogetssl_fqdn);
+        $this->view->set("action_url", $this->base_uri . "services/manage/" . $service->id . "/tabClientInstall/");
+        $this->view->set("csr_install", $this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/?tab=tabClientReissue");
+        $this->view->set("csr_data", $csr_data);
 
-        $this->view->set("post_back",   json_encode($postRequest));
+        $this->view->set("post_back", json_encode($postRequest));
 
         //add our custom javascript
         ///components/modules/gogetssl/views/default/
-        $this->view->set("js_script",  "js/" . ($row->meta->sandbox? "tab_client_install.js" : "tab_client_install.min.js"));
+        $this->view->set("js_script", "js/" . ($row->meta->sandbox ? "tab_client_install.js" : "tab_client_install.min.js"));
 
         //$this->view->set("gogetssl_approver_emails", $this->getApproverEmails($api, $package, $service_fields->gogetssl_fqdn));
 
         //@todo pass install action
-        if(isset($postRequest["gogetssl_csr"])) {
+        if (isset($postRequest["gogetssl_csr"])) {
 
             Loader::loadModels($this, array("Services"));
 
             $vars = array(
-                "gogetssl_fqdn"             => $service_fields->gogetssl_fqdn,
-                "use_module"                 => true,
-                "pricing_id"                 => $service->pricing_id,
-                "gogetssl_webserver_type"   =>  $postRequest["gogetssl_webserver_type"],
-                "gogetssl_csr"              =>  $postRequest["gogetssl_csr"],
-                "gogetssl_approver_type"    =>  $postRequest["gogetssl_approver_type"],
-                "gogetssl_approver_email"    => $postRequest["gogetssl_approver_email"],
+                "gogetssl_fqdn" => $service_fields->gogetssl_fqdn,
+                "use_module" => true,
+                "pricing_id" => $service->pricing_id,
+                "gogetssl_webserver_type" => $postRequest["gogetssl_webserver_type"],
+                "gogetssl_csr" => $postRequest["gogetssl_csr"],
+                "gogetssl_approver_type" => $postRequest["gogetssl_approver_type"],
+                "gogetssl_approver_email" => $postRequest["gogetssl_approver_email"],
             );
 
             $vars['client_id'] = $service->client_id;
@@ -1426,320 +1373,49 @@ class Gogetsslv2 extends Module
 
     }
 
-    /**
-     * Client Reissue tab
-     *
-     * @param stdClass $package A stdClass object representing the current package
-     * @param stdClass $service A stdClass object representing the current service
-     * @param array $get Any GET parameters
-     * @param array $post Any POST parameters
-     * @param array $files Any FILES parameters
-     * @return string The string representing the contents of this tab
-     */
-    public function tabClientGenerateCSR($package, $service, array $getRequest = null, array $postRequest = null, array $files = null)
+    public function getLib()
     {
-
-
-        $this->view = new View("tab_csr_generator", "default");
-        //views/default/tab_csr_generator.pdt
-        if ($service->status == "pending"){
-            return "Service still pending, has not been activated yet.";
-        }
-        $lib = $this->getLib();
-        //define any ajax calls to this tab
-        $allowedRequests = array("generateCSR");
-
-        //process any ajax request first before page render
-        if ($lib->isAjaxRequest()){
-
-            $dataRequest    = $lib->dataRequest($getRequest,$postRequest);
-            $packageRequest = $lib->packageRequest($package,$service);
-
-            $lib->processAjax($this,$allowedRequests,$dataRequest,$packageRequest);
+        if (!$this->my_module_lib) {
+            Loader::load(dirname(__FILE__) . DS . "libs" . DS . "my_module_lib.php");
+            $this->my_module_lib = new my_module_lib();
         }
 
-        //grab the tab we want to pass the data to
-
-        //Set our install redirect
-        $tab = $lib->getRequest($getRequest,'tab');
-        $install_tab = $this->base_uri . "services/manage/" . $service->id . "/" .(($tab != false)?$tab: "tabClientInstall") . "/";
-
-
-        /*
-        $dataRequest    = $lib->dataRequest($getRequest,$postRequest);
-        $packageRequest = $lib->packageRequest($package,$service);
-        //while testing
-        $response = $this->generateCSR($dataRequest,$packageRequest);
-        var_dump($response);exit;
-        */
-
-
-        $this->view->base_uri = $this->base_uri;
-
-        $this->view = new View("tab_csr_generator", "default");
-        Loader::loadHelpers($this, array("Form", "Html"));
-
-        $this->view->setDefaultView("components" . DS . "modules" . DS . "gogetsslv2" . DS);
-
-        if (!isset($this->Clients) || !isset($this->Countries))
-            Loader::loadModels($this, array("Clients","Countries"));
-
-        $service_fields = $this->serviceFieldsToObject($service->fields);
-
-        $row = $this->getModuleRow($package->module_row);
-
-        //retrieve client info
-        $client_info = $this->Clients->get($service->client_id,false);
-        $countries = $this->Countries->getList();
-
-        $this->view->set("view", $this->view->view);
-        $this->view->set("gogetssl_country_codes",$countries);
-        $this->view->set("gogetssl_country_default",$client_info->country);
-        $this->view->set("gogetssl_csr_state",$client_info->state);
-
-        $this->view->set("gogetssl_csr_fqdn",$service_fields->gogetssl_fqdn);
-        $this->view->set("gogetssl_csr_email",$client_info->email);
-        $this->view->set("action_url",	$this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/");
-
-        $this->view->set("install_csr_url", $install_tab);
-
-
-
-
-        return $this->view->fetch();
+        return $this->my_module_lib;
     }
-
-
 
     /**
-     * Client Install tab
-     *
-     * @param stdClass $package A stdClass object representing the current package
-     * @param stdClass $service A stdClass object representing the current service
-     * @param array $get Any GET parameters
-     * @param array $post Any POST parameters
-     * @param array $files Any FILES parameters
-     * @return string The string representing the contents of this tab
+     * @param $service representing the current service
+     * @param $row module row to access the api
+     * @return bool returns true or false if we have a view to render
      */
-    public function tabClientInstall($package, $service, array $getRequest=null, array $postRequest=null, array $files=null) {
-
-        if ($service->status == "pending"){
-            return "Service still pending, has not been activated yet.";
-        }
-
-        // Get the service fields & row
-        $service_fields = $this->serviceFieldsToObject($service->fields);
-
-
-
-        //get our external library helper
-        $lib = $this->getLib();
-
-        //predefine ajax calls allowed to this tab
-        $allowedRequests = array("authAlternatives","emailAuthorisation");
-
-
-
-        //process any ajax request first before page renders
-        //*******************************HANDLE AJAX REQUEST START***********************************/
-        if ($lib->isAjaxRequest()){
-
-            $dataRequest    = $lib->dataRequest($getRequest,$postRequest);
-            $packageRequest = $lib->packageRequest($package,$service);
-
-            $lib->processAjax($this,$allowedRequests,$dataRequest,$packageRequest);
-        }
-        //*******************************HANDLE AJAX REQUEST END***********************************/
-
-        //non ajax calls
-        /**Download http file before render @todo move to global request **/
-        if ($lib->isGetRequest($getRequest,array('http_download')) != false){
-            $contents = $lib->getRequest($getRequest,'contents');
-            $file_name = $lib->getRequest($getRequest,'file_name');
-            header("Content-Disposition: attachment; filename=$file_name");
-            header("Content-type: text/plain");
-            echo $contents;
-            die;
-        }
-
-
-
-        //*******************************HANDLE POST DATA START***********************************/
-        //action=install
-        if(isset($postRequest["gogetssl_csr"]) ) {
-
-
-            Loader::loadModels($this, array("Services"));
-            $vars = $this->getVarPost($service_fields,$postRequest);
-            $vars['use_module'] = true;
-            $vars['client_id'] = $service->client_id;
-            $vars['action'] = 'install';
-            //@todo need to look why we need to fill pricing id maybe multiple products?
-            $vars['pricing_id'] = $service->pricing_id;
-            $results = $this->editService($package, $service, $vars);
-
-
-            if (!$this->Input->errors()){
-                $this->Services->setFields($service->id, $results);
-                $tmp_service =  $this->serviceFieldsToObject($results);
-                //for security we just going to pass order_id and is issued to our service_fields
-                $service_fields->gogetssl_issed     = $tmp_service->gogetssl_issed;
-                $service_fields->gogetssl_orderid   = $tmp_service->gogetssl_orderid;
-            }
-
-
-
-
-        }
-
-
-        //*******************************HANDLE POST DATA END***********************************/
-
-        //RENDER PAGE
-        $this->view = new View("tab_client_install", "default");
-        $this->view->base_uri = $this->base_uri;
-
-        //load client info to help form out
-        if (!isset($this->Clients))
-            Loader::loadModels($this, array("Clients"));
-
-        //retrieve client info
-        $client_info = $this->Clients->get($service->client_id,false);
-
-
-
-
-
-        // Load the helpers required for this view
-        Loader::loadHelpers($this, array("Form", "Html"));
-
-        //int our csr data pass false if empty
-        $csr_data = $lib->ifSet($service_fields->gogetssl_csr,false);
-        //load our row
-        $row = $this->getModuleRow($package->module_row);
-
-
-        //small patch for cert_type that was missing should have done as upgrade function this will be removed later
-        if (!isset($service_fields->cert_type)){
-            if (!isset($this->Services))
-                Loader::loadModels($this, array("Services"));
-
-            $api = $this->api($row);
-            $service_fields->cert_type = $this->isComodoCert($api, $package) ? '1' : '2';
-
-            //update our csr code
-            $service_fields_update = $this->ourServiceFields(
-                $lib->serviceFieldMerge($service_fields,    array("cert_type" => $service_fields->cert_type)) ,
-                $service_fields->gogetssl_orderid
-            );
-            $this->Services->setFields($service->id, $service_fields_update);
-        }
-
-        //POST CHECK CERT INSTALL
-        if ($service_fields->gogetssl_issed) {
-          
-            /*
-            $cert_install_check = $this->certIsPending($service, $row);
-            if ($cert_install_check !== true) {
-                return $cert_install_check;
-            }*/
-            //@todo bug $service i not passing service_fields->gogetssl_order id
-            //$cert_install_check = $this->certIsPending($service, $row);
-            if ($this->certIsPending($service, $row) == true) {
-                //return $cert_install_check;
-                return $this->view->fetch();
-            }
-        }
-
-        //***************************************CERTIFICATE HAS NOT BEEN CREATED*******************************************
-
-        //default passing to view
-        $approver_other = array(
-                "http"  => Language::_("GoGetSSLv2.tab_install.other_installs.http_select", true),
-                "dns"   => Language::_("GoGetSSLv2.tab_install.other_installs.dns_select", true),
-                "email" => Language::_("GoGetSSLv2.tab_install.other_installs.email_select", true),
-        );
-        $this->view->set("gogetssl_approver_type", $approver_other);
-
-        //pass webserver types
-        $this->view->set("gogetssl_webserver_types", $this->getWebserverTypes($service_fields->cert_type));
-        //pass the cert type
-        $this->view->set("cert_type", $service_fields->cert_type);
-       // $this->view->set("gogetssl_fqdn", $service_fields->gogetssl_fqdn);
-        //$this->view->set("gogetssl_approver_emails", $this->getApproverEmails($api, $package, $service_fields->gogetssl_fqdn));
-        //$this->view->set("vars", $vars);
-
-        $this->view->set("client_id", $service->client_id);
-        $this->view->set("service_id", $service->id);
-        $this->view->set("gogetssl_csr_fqdn",$service_fields->gogetssl_fqdn);
-
-        $this->view->set("client",$client_info);
-        $this->view->set("action_url",	$this->base_uri . "services/manage/" . $service->id . "/tabClientInstall/");
-        $this->view->set("csr_install",	$this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/?tab=tabClientInstall");
-        $this->view->set("csr_data",	$csr_data);
-        $this->view->set("post_back",   json_encode($postRequest));
-
-        //add our custom javascript
-        ///components/modules/gogetssl/views/default/
-        $this->view->set("js_script",  "js/" . ($row->meta->sandbox? "tab_client_install.js" : "tab_client_install.min.js"));
-
-        $this->view->set("view", $this->view->view);
-        $this->view->setDefaultView("components" . DS . "modules" . DS . "gogetsslv2" . DS);
-
-        return $this->view->fetch();
-    }
-
-
     private function certIsPending($service,$row)
     {
-        //Set as default pending
+
+        //Set as default pending cert
         $isPending = true;
-        //print_r($this->view);exit;
 
-        //return $this->view->fetch();
-        //$tab = ($this->view->file == "tab_client_install") ? "tabClientInstall" : "tabClientReissue";
-
-
-        //pre-define cert as not installed
-
+        //get service fields
         $service_fields = $this->serviceFieldsToObject($service->fields);
 
 
          // Get the service fields & row
         $api = $this->api($row);
-        //caching results for testing
+
+        //caching results for testing purposes
         $api->cacheResults();
 
         $response = $this->parseResponse($api->getOrderStatus($service_fields->gogetssl_orderid) , $row);
 
-            //for testing purposes
-        /*
-            if ($this->debug_mode == false){
+        //check status of cert die if error.
+        if ($response['success'] != true) die("Failed to load response certIsPending function ");
 
-
-
-            }else{
-
-                $response = $this->debug($service_fields,'getOrderStatus');
-
-                //$this->clearDebug($service_fields,'getOrderStatus');
-
-                if ($response == false)
-                $response = $this->parseResponse(
-                    $this->debug($service_fields,'getOrderStatus' , $api->getOrderStatus($service_fields->gogetssl_orderid))
-                    ,$row);
-            }
-            */
-
-            //check status of cert
-            if ($response['success'] != true)die("Failed to load response certIsPending ");
-
+        //pass result as object
             $result = (object) $response;
 
             //grab the status
             $status = (isset($result->status)) ? $result->status : false;
 
-            //certificate is active don't continue
+        //certificate is active don't continue we dont need to render this view
             if ($status == "active") return false;
 
             $this->view = new View("tab_client_pending", "default");
@@ -1836,64 +1512,9 @@ class Gogetsslv2 extends Module
     }
 	
 	/**
-	 * Retrieves a list of products
+     * Retrieves a list of webserver types from the config file
 	 *
-	 * @param GoGetSslApi $api the API to use
-	 * @param stdClass $module_row A stdClass object representing a single reseller (optional, required when Module::getModuleRow() is unavailable)
-	 * @return array A list of products
-	 */
-	private function getProducts($api, $module_row) {
-		$this->log($module_row->meta->api_username . "|ssl-products", '', "input", true);
-		$res = $this->parseResponse($api->getAllProducts(), $module_row);
-
-		$out = array(); 
-		  
-		foreach($res['products'] AS $value) { 
-			$out[$value['id']] = $value['name']; 
-		}
-		
-		return $out;
-	}
-
-    /**
-     * Initializes the API and returns a Singleton instance of that object for api calls
-     *
-     * @param stdClass $module_row A stdClass object representing a single reseller (optional, required when Module::getModuleRow() is unavailable)
-     * @return GoGetSSLApi The GoGetSSLApi instance
-     */
-    private $_api = false;
-    private function api($module_row = false){
-        if ($this->_api == false){
-
-            //if module_row was not passed will try retrieve
-            if ($module_row == false || !isset($module_row))
-                $module_row = $this->getModuleRow();
-
-            if (!isset($module_row)){
-                die ("failed to load api (module row issue)");
-            }
-
-            Loader::load(dirname(__FILE__) . DS . "apis" . DS . "GoGetSSLApi.php");
-
-            $this->_api = new GoGetSSLApi($module_row->meta->sandbox == "true");
-
-
-
-            $this->parseResponse($this->_api->auth(
-                $module_row->meta->api_username,
-                $module_row->meta->api_password
-            ),
-            $module_row);
-
-        }
-
-
-        return $this->_api;
-    }
-	/**
-	 * Retrieves a list of webserver types from the config file
-	 *
-	 * @param stdClass $package The package
+     * @param stdClass $package The package
 	 * @return array A list of products
      */
     public function getWebserverTypes($cert_type = 1)
@@ -1902,168 +1523,161 @@ class Gogetsslv2 extends Module
         //webserver types
         return Configure::get("gogetsslv2.web_server_types.$cert_type");
 	}
-	
-	/**
-	 * Returns if package's certificate vendor is a COMODO cert or not
-	 *
-	 * @param GoGetSslApi $api the API to use
-	 * @param stdClass $package The package
-	 * @return boolean If it is COMODO
-	 */
-	public function isComodoCert($api, $package) {
-        //@todo once we have purchased a cert we should store some details into config for so many days not recall api
-		$row = $this->getModuleRow($package->module_row);
-	
-		$this->log($row->meta->api_username . "|ssl-is-comodo-cert", serialize($package->meta->gogetssl_product), "input", true);
-		try {
 
-			$product = $this->parseResponse($api->getProductDetails($package->meta->gogetssl_product), $row);
-			return $product['product_brand'] == 'comodo';
-        } catch (Exception $e) {
-			// Error, invalid authorization
-			$this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
-		}
-		return false;
-	}
-	
-	/**
-	 * Retrieves a list of rules for validating adding/editing a module row
-	 *
-	 * @param array $vars A list of input vars
-	 * @return array A list of rules
-	 */
-	private function getRowRules(array &$vars) {
-		return array(
-			'api_username' => array(
-				'empty' => array(
-					'rule' => "isEmpty",
-					'negate' => true,
-					'message' => Language::_("GoGetSSLv2.!error.api_username.empty", true)
-				),
-				'valid' => array(
-					'rule' => array(array($this, "validateConnection"), $vars),
-					'message' => Language::_("GoGetSSLv2.!error.api_username.valid", true)
-				)
-			),
-			'api_password' => array(
-				'empty' => array(
-					'rule' => "isEmpty",
-					'negate' => true,
-					'message' => Language::_("GoGetSSLv2.!error.api_password.empty", true)
-				)
-			),
-			'gogetssl_name' => array(
-				'empty' => array(
-					'rule' => "isEmpty",
-					'negate' => true,
-					'message' => Language::_("GoGetSSLv2.!error.gogetssl_name.empty", true)
-				)
-			),
-			'sandbox' => array(
-			)
-		);
-	}
-	
-	/**
-	 * Retrieves a list of rules for validating adding/editing a package
-	 *
-	 * @param array $vars A list of input vars
-	 * @return array A list of rules
-	 */
-	private function getPackageRules(array $vars = null) {
-		$rules = array(
-			'meta[gogetssl_product]' => array(
-				'empty' => array(
-					'rule' => "isEmpty",
-					'negate' => true,
-					'message' => Language::_("GoGetSSLv2.!error.meta[gogetssl_product].valid", true)
-				)
-			)
-		);
-		
-		return $rules;
-	}
-	
-	/**
-	 * Validates whether or not the connection details are valid by attempting to fetch
-	 * the number of accounts that currently reside on the server
-	 *
-	 * @param string $api_username The reseller API username
-	 * @param array $vars A list of other module row fields including:
-	 * 	- api_password The reseller password
-	 * 	- sandbox "true" or "false" as to whether sandbox is enabled
-	 * @return boolean True if the connection is valid, false otherwise
-	 */
-	public function validateConnection($api_username, $vars) {
-		try {
-			$api_password = (isset($vars['api_password']) ? $vars['api_password'] : "");
-			$sandbox = (isset($vars['sandbox']) && $vars['sandbox'] == "true" ? "true" : "false");
-			$module_row = (object)array('meta' => (object)$vars);
-
-			$this->api($module_row);
-
-			if (!$this->Input->errors())
-				return true;
-			
-			// Remove the errors set
-			$this->Input->setErrors(array());
-        } catch (Exception $e) {
-			// Trap any errors encountered, could not validate connection
-		}
-		return false;
-	}
-	
-	/**
-	 * Parses the response from GoGetSsl into an stdClass object
-	 *
-	 * @param mixed $response The response from the API
-	 * @param stdClass $module_row A stdClass object representing a single reseller (optional, required when Module::getModuleRow() is unavailable)
-	 * @param boolean $ignore_error Ignores any response error and returns the response anyway; useful when a response is expected to fail (e.g. check client exists) (optional, default false)
-	 * @return stdClass A stdClass object representing the response, void if the response was an error
-	 */
-	public function parseResponse($response, $module_row = null, $ignore_error = false) {
-		Loader::loadHelpers($this, array("Html"));
-		
-		// Set the module row
-		if (!$module_row)
-			$module_row = $this->getModuleRow();
-		
-		$success = true;
-
-		if(empty($response) || !empty($response['error'])) {
-            $success = false;
-            $error = (isset($response['description'])) ? $response['description'] : Language::_("GoGetSSLv2.!error.api.internal", true);
+    /**
+     * Edits the service on the remote server. Sets Input errors on failure,
+     * preventing the service from being edited.
+     *
+     * @param stdClass $package A stdClass object representing the current package
+     * @param stdClass $service A stdClass object representing the current service
+     * @param array $vars An array of user supplied info to satisfy the request
+     * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
+     * @param stdClass $parent_service A stdClass object representing the parent service of the service being edited (if the current service is an addon service)
+     * @return array A numerically indexed array of meta fields to be stored for this service containing:
+     *    - key The key for this meta field
+     *    - value The value for this key
+     *    - encrypted Whether or not this field should be encrypted (default 0, not encrypted)
+     * @see Module::getModule()
+     * @see Module::getModuleRow()
+     */
+    public function editService($package, $service, array $vars = array(), $parent_package = null, $parent_service = null)
+    {
+        //define as default installed
 
 
-            if (!$ignore_error)
-                $this->Input->setErrors(
-                    array('api' =>
-                        array('internal' =>
-                            $error
-                        )
-                    )
-                );
-                //$this->Input->setErrors(array('errors' => $error));
+        // Validate the service-specific fields
+        $this->validateService($package, $vars, true);
+
+        if ($this->Input->errors())
+            return;
+
+        $row = $this->getModuleRow($package->module_row);
+
+        $api = $this->api($row);
+
+        $service_fields = $this->serviceFieldsToObject($service->fields);
 
 
-            //$this->Input->setErrors(array('api' => array('internal' => $error)));
+        //check if we have installed cert yet
+        if ($service_fields->gogetssl_issed == false && $vars["use_module"] == "true") {
+            //check install_cert from gogetssl
+            //install cert
+            $data = $this->fillSSLDataFrom($package, (isset($vars['client_id']) ? $vars['client_id'] : ""), $vars);
 
+            //force dcv_method for email validation for non comodo certs
+            if ($service_fields->cert_type == 2)
+                $data['dcv_method'] = "email";
+
+            //if we are not using email auth we need to unset approver email to force transaction
+            if ($data['dcv_method'] != "email")
+                unset($data['approver_email']);
+
+            //print_r($data);
+            //exit;
+            $this->log($row->meta->api_username . "|ssl-new-order", serialize($data), "input", true);
+
+            //make the call
+            //for testing
+            if ($this->debug_mode == false) {
+                $response = $api->addSSLOrder($data);
+            } else {
+
+
+                if (!isset($_SESSION['addSSLOrder']))
+                    $_SESSION['addSSLOrder'] = $api->addSSLOrder($data);;
+
+                $response = $_SESSION['addSSLOrder'];
+
+
+                $response = $this->debug($service_fields, 'addSSLOrder', $response);
+            }
+
+            $this->log($row->meta->api_username . "|ssl-new-order-response", serialize($response), "input", true);
+
+            //$api->addSSLOrder($data);
+
+
+            //$response = $api->addSSLOrder($data);
+            $result = $this->parseResponse($response, $row);
+
+            if ($row->meta->sandbox == true && $this->Input->errors()) {
+                if (preg_match('/Such certificate already exists \(Order ID: (\d+)/', $response['description'], $matches)) {
+                    $result['order_id'] = $matches[1];
+                    $this->Input->setErrors(array());
+                }
+
+                //check for errors
+
+            } else {
+                //check for errors
+                if ($this->Input->errors())
+                    return;
+            }
+
+
+            if (empty($result)) {
+                return;
+            }
+
+            if (isset($result['order_id'])) {
+                $order_id = $result['order_id'];
+                $this->log($row->meta->api_username . "|ssl-activate", serialize($order_id), "input", true);
+                //$this->parseResponse($api->activateSSLOrder($order_id), $row); //depreicated GetOrderStatus
+
+                //Update that we have installed the cert
+                $service_fields->gogetssl_issed = true;
+
+            }
+
+        } else if ($vars["use_module"] == "true" && $service_fields->gogetssl_issed == true) {
+            $order_id = $service_fields->gogetssl_orderid;
+
+            $data = array(
+                'csr' => $vars["gogetssl_csr"],
+                'approver_email' => $vars["gogetssl_approver_email"],
+                'webserver_type' => $vars["gogetssl_webserver_type"],
+                'dcv_method' => $vars["gogetssl_approver_type"]
+            );
+
+            $this->log($row->meta->api_username . "|ssl-reissue", serialize($data), "input", true);
+            $response = $api->reIssueOrder($service_fields->gogetssl_orderid, $data);
+
+            $result = $this->parseResponse($response, $row);
+            //this could be due to cert not actually installed or domain/auth method has not been done
+            //    [description] => Order can't be processed with reissue procedure!
+
+            if ($this->Input->errors())
+                return;
+
+            if (empty($result)) {
+                return;
+            }
+
+            if (isset($result['order_id'])) {
+                $order_id = $result['order_id'];
+                $this->log($row->meta->api_username . "|ssl-activate", serialize($order_id), "input", true);
+                //$this->parseResponse($api->activateSSLOrder($order_id), $row);
+            }
         }
 
-		$this->log($module_row->meta->api_username, serialize($response), "output", $success);
-		
-		if (!$success && !$ignore_error)
-			return;
-		
-		return $response;
-	}
 
-
-    private function getJSPath(){
-        return DS . "views" . DS . "default" . DS . "js" . DS ;
+        return $this->ourServiceFields($service_fields, $order_id);
     }
 
-    private function ourServiceFields($service_fields,  $order_id){
+    private function debug($service_fields, $key, $value = false)
+    {
+        $domain = trim($service_fields->gogetssl_fqdn);
+        $key = trim($key);
+        if (empty($key)) die("key empty debug_mode");
+
+        if (!isset($_SESSION[$key][$domain]) || empty($_SESSION[$key][$domain]))
+            $_SESSION[$key][$domain] = $value;
+
+        return $_SESSION[$key][$domain];
+    }
+
+    private function ourServiceFields($service_fields, $order_id)
+    {
         Loader::loadHelpers($this, array("Html"));
 
         return array(
@@ -2176,6 +1790,562 @@ class Gogetsslv2 extends Module
         );
     }
 
+    /**
+     * Client Reissue tab
+     *
+     * @param stdClass $package A stdClass object representing the current package
+     * @param stdClass $service A stdClass object representing the current service
+     * @param array $get Any GET parameters
+     * @param array $post Any POST parameters
+     * @param array $files Any FILES parameters
+     * @return string The string representing the contents of this tab
+     */
+    public function tabClientGenerateCSR($package, $service, array $getRequest = null, array $postRequest = null, array $files = null)
+    {
+
+
+        $this->view = new View("tab_csr_generator", "default");
+        //views/default/tab_csr_generator.pdt
+        if ($service->status == "pending") {
+            return "Service still pending, has not been activated yet.";
+        }
+        $lib = $this->getLib();
+        //define any ajax calls to this tab
+        $allowedRequests = array("generateCSR");
+
+        //process any ajax request first before page render
+        if ($lib->isAjaxRequest()) {
+
+            $dataRequest = $lib->dataRequest($getRequest, $postRequest);
+            $packageRequest = $lib->packageRequest($package, $service);
+
+            $lib->processAjax($this, $allowedRequests, $dataRequest, $packageRequest);
+        }
+
+        //grab the tab we want to pass the data to
+
+        //Set our install redirect
+        $tab = $lib->getRequest($getRequest, 'tab');
+        $install_tab = $this->base_uri . "services/manage/" . $service->id . "/" . (($tab != false) ? $tab : "tabClientInstall") . "/";
+
+
+        /*
+        $dataRequest    = $lib->dataRequest($getRequest,$postRequest);
+        $packageRequest = $lib->packageRequest($package,$service);
+        //while testing
+        $response = $this->generateCSR($dataRequest,$packageRequest);
+        var_dump($response);exit;
+        */
+
+
+        $this->view->base_uri = $this->base_uri;
+
+        $this->view = new View("tab_csr_generator", "default");
+        Loader::loadHelpers($this, array("Form", "Html"));
+
+        $this->view->setDefaultView("components" . DS . "modules" . DS . "gogetsslv2" . DS);
+
+        if (!isset($this->Clients) || !isset($this->Countries))
+            Loader::loadModels($this, array("Clients", "Countries"));
+
+        $service_fields = $this->serviceFieldsToObject($service->fields);
+
+        $row = $this->getModuleRow($package->module_row);
+
+        //retrieve client info
+        $client_info = $this->Clients->get($service->client_id, false);
+        $countries = $this->Countries->getList();
+
+        $this->view->set("view", $this->view->view);
+        $this->view->set("gogetssl_country_codes", $countries);
+        $this->view->set("gogetssl_country_default", $client_info->country);
+        $this->view->set("gogetssl_csr_state", $client_info->state);
+
+        $this->view->set("gogetssl_csr_fqdn", $service_fields->gogetssl_fqdn);
+        $this->view->set("gogetssl_csr_email", $client_info->email);
+        $this->view->set("action_url", $this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/");
+
+        $this->view->set("install_csr_url", $install_tab);
+
+
+        return $this->view->fetch();
+    }
+
+    /**
+     * Client Install tab
+     *
+     * @param stdClass $package A stdClass object representing the current package
+     * @param stdClass $service A stdClass object representing the current service
+     * @param array $get Any GET parameters
+     * @param array $post Any POST parameters
+     * @param array $files Any FILES parameters
+     * @return string The string representing the contents of this tab
+     */
+    public function tabClientInstall($package, $service, array $getRequest = null, array $postRequest = null, array $files = null)
+    {
+
+        if ($service->status == "pending") {
+            return "Service still pending, has not been activated yet.";
+        }
+
+        // Get the service fields & row
+        $service_fields = $this->serviceFieldsToObject($service->fields);
+
+
+        //get our external library helper
+        $lib = $this->getLib();
+
+        //predefine ajax calls allowed to this tab
+        $allowedRequests = array("authAlternatives", "emailAuthorisation");
+
+
+        //process any ajax request first before page renders
+        //*******************************HANDLE AJAX REQUEST START***********************************/
+        if ($lib->isAjaxRequest()) {
+
+            $dataRequest = $lib->dataRequest($getRequest, $postRequest);
+            $packageRequest = $lib->packageRequest($package, $service);
+
+            $lib->processAjax($this, $allowedRequests, $dataRequest, $packageRequest);
+        }
+        //*******************************HANDLE AJAX REQUEST END***********************************/
+
+        //non ajax calls
+        /**Download http file before render @todo move to global request * */
+        if ($lib->isGetRequest($getRequest, array('http_download')) != false) {
+            $contents = $lib->getRequest($getRequest, 'contents');
+            $file_name = $lib->getRequest($getRequest, 'file_name');
+            header("Content-Disposition: attachment; filename=$file_name");
+            header("Content-type: text/plain");
+            echo $contents;
+            die;
+        }
+
+
+        //*******************************HANDLE POST DATA START***********************************/
+        //action=install
+        if (isset($postRequest["gogetssl_csr"])) {
+
+
+            Loader::loadModels($this, array("Services"));
+            $vars = $this->getVarPost($service_fields, $postRequest);
+            $vars['use_module'] = true;
+            $vars['client_id'] = $service->client_id;
+            $vars['action'] = 'install';
+            //@todo need to look why we need to fill pricing id maybe multiple products?
+            $vars['pricing_id'] = $service->pricing_id;
+            $results = $this->editService($package, $service, $vars);
+
+
+            if (!$this->Input->errors()) {
+                $this->Services->setFields($service->id, $results);
+                $tmp_service = $this->serviceFieldsToObject($results);
+                //for security we just going to pass order_id and is issued to our service_fields
+                $service_fields->gogetssl_issed = $tmp_service->gogetssl_issed;
+                $service_fields->gogetssl_orderid = $tmp_service->gogetssl_orderid;
+            }
+
+
+        }
+
+
+        //*******************************HANDLE POST DATA END***********************************/
+
+        //RENDER PAGE
+        $this->view = new View("tab_client_install", "default");
+        $this->view->base_uri = $this->base_uri;
+
+        //load client info to help form out
+        if (!isset($this->Clients))
+            Loader::loadModels($this, array("Clients"));
+
+        //retrieve client info
+        $client_info = $this->Clients->get($service->client_id, false);
+
+
+        // Load the helpers required for this view
+        Loader::loadHelpers($this, array("Form", "Html"));
+
+        //int our csr data pass false if empty
+        $csr_data = $lib->ifSet($service_fields->gogetssl_csr, false);
+        //load our row
+        $row = $this->getModuleRow($package->module_row);
+
+
+        //small patch for cert_type that was missing should have done as upgrade function this will be removed later
+        if (!isset($service_fields->cert_type)) {
+            if (!isset($this->Services))
+                Loader::loadModels($this, array("Services"));
+
+            $api = $this->api($row);
+            $service_fields->cert_type = $this->isComodoCert($api, $package) ? '1' : '2';
+
+            //update our csr code
+            $service_fields_update = $this->ourServiceFields(
+                $lib->serviceFieldMerge($service_fields, array("cert_type" => $service_fields->cert_type)),
+                $service_fields->gogetssl_orderid
+            );
+            $this->Services->setFields($service->id, $service_fields_update);
+        }
+
+        //POST CHECK CERT INSTALL
+        if ($service_fields->gogetssl_issed) {
+
+            /*
+            $cert_install_check = $this->certIsPending($service, $row);
+            if ($cert_install_check !== true) {
+                return $cert_install_check;
+            }*/
+            //@todo bug $service i not passing service_fields->gogetssl_order id
+            //$cert_install_check = $this->certIsPending($service, $row);
+            if ($this->certIsPending($service, $row) == true) {
+                //return $cert_install_check;
+                return $this->view->fetch();
+            }
+        }
+
+        //***************************************CERTIFICATE HAS NOT BEEN CREATED*******************************************
+
+        //default passing to view
+        $approver_other = array(
+            "http" => Language::_("GoGetSSLv2.tab_install.other_installs.http_select", true),
+            "dns" => Language::_("GoGetSSLv2.tab_install.other_installs.dns_select", true),
+            "email" => Language::_("GoGetSSLv2.tab_install.other_installs.email_select", true),
+        );
+        $this->view->set("gogetssl_approver_type", $approver_other);
+
+        //pass webserver types
+        $this->view->set("gogetssl_webserver_types", $this->getWebserverTypes($service_fields->cert_type));
+        //pass the cert type
+        $this->view->set("cert_type", $service_fields->cert_type);
+        // $this->view->set("gogetssl_fqdn", $service_fields->gogetssl_fqdn);
+        //$this->view->set("gogetssl_approver_emails", $this->getApproverEmails($api, $package, $service_fields->gogetssl_fqdn));
+        //$this->view->set("vars", $vars);
+
+        $this->view->set("client_id", $service->client_id);
+        $this->view->set("service_id", $service->id);
+        $this->view->set("gogetssl_csr_fqdn", $service_fields->gogetssl_fqdn);
+
+        $this->view->set("client", $client_info);
+        $this->view->set("action_url", $this->base_uri . "services/manage/" . $service->id . "/tabClientInstall/");
+        $this->view->set("csr_install", $this->base_uri . "services/manage/" . $service->id . "/tabClientGenerateCSR/?tab=tabClientInstall");
+        $this->view->set("csr_data", $csr_data);
+        $this->view->set("post_back", json_encode($postRequest));
+
+        //add our custom javascript
+        ///components/modules/gogetssl/views/default/
+        $this->view->set("js_script", "js/" . ($row->meta->sandbox ? "tab_client_install.js" : "tab_client_install.min.js"));
+
+        $this->view->set("view", $this->view->view);
+        $this->view->setDefaultView("components" . DS . "modules" . DS . "gogetsslv2" . DS);
+
+        return $this->view->fetch();
+    }
+
+    /**
+     * @description Passes a postrequest and returns valid entries for our META row
+     * @param $service_fields
+     * @param $postRequest
+     * @return array
+     */
+    private function getVarPost($service_fields, $postRequest)
+    {
+
+        return array(
+            "gogetssl_approver_email" => $postRequest["gogetssl_approver_email"],
+            "gogetssl_fqdn" => $service_fields->gogetssl_fqdn,
+            "gogetssl_webserver_type" => $postRequest["gogetssl_webserver_type"],
+            "gogetssl_csr" => $postRequest["gogetssl_csr"],
+            "gogetssl_approver_type" => $postRequest["gogetssl_approver_type"],
+            "gogetssl_title" => $postRequest["gogetssl_title"],
+            "gogetssl_firstname" => $postRequest["gogetssl_firstname"],
+            "gogetssl_lastname" => $postRequest["gogetssl_lastname"],
+            "gogetssl_address1" => $postRequest["gogetssl_address1"],
+            "gogetssl_address2" => $postRequest["gogetssl_address2"],
+            "gogetssl_city" => $postRequest["gogetssl_city"],
+            "gogetssl_zip" => $postRequest["gogetssl_zip"],
+            "gogetssl_state" => $postRequest["gogetssl_state"],
+            "gogetssl_country" => $postRequest["gogetssl_country"],
+            "gogetssl_email" => $postRequest["gogetssl_email"],
+            "gogetssl_number" => $postRequest["gogetssl_number"],
+            "gogetssl_fax" => $postRequest["gogetssl_fax"],
+            "gogetssl_organization" => $postRequest["gogetssl_organization"],
+            "gogetssl_organization_unit" => $postRequest["gogetssl_organization_unit"]
+
+        );
+    }
+	
+	/**
+	 * Validates whether or not the connection details are valid by attempting to fetch
+	 * the number of accounts that currently reside on the server
+	 *
+	 * @param string $api_username The reseller API username
+	 * @param array $vars A list of other module row fields including:
+	 * 	- api_password The reseller password
+	 * 	- sandbox "true" or "false" as to whether sandbox is enabled
+	 * @return boolean True if the connection is valid, false otherwise
+	 */
+	public function validateConnection($api_username, $vars) {
+		try {
+			$api_password = (isset($vars['api_password']) ? $vars['api_password'] : "");
+			$sandbox = (isset($vars['sandbox']) && $vars['sandbox'] == "true" ? "true" : "false");
+			$module_row = (object)array('meta' => (object)$vars);
+
+			$this->api($module_row);
+
+			if (!$this->Input->errors())
+				return true;
+			
+			// Remove the errors set
+			$this->Input->setErrors(array());
+        } catch (Exception $e) {
+			// Trap any errors encountered, could not validate connection
+		}
+		return false;
+	}
+
+    /**
+     * @param $request                  This contains the GET & POST requests as an Array
+     * @param $dataRequest              This contains the package & service requests as an Array
+     * @throws GoGetSSLAuthException
+     * @return                          JSON of other alternative authorisation methods
+     */
+    public function authAlternatives($request, $dataRequest)
+    {
+        //parse our request
+        $postRequest = $request['postRequest'];
+        $getRequest = $request['getRequest'];
+
+        $lib = $this->getLib();
+
+        //get CSR request
+        $csr_data = $lib->getRequest($getRequest, 'csr_data');
+
+
+        if (!$csr_data)
+            $lib->sendAjax("Failed to get CSR data", false);
+
+
+        //get service & packages
+        $package = $dataRequest['package'];
+        $service = $dataRequest['service'];
+
+        $service_fields = $this->serviceFieldsToObject($service->fields);
+        $domain = $service_fields->gogetssl_fqdn;
+
+        if ($this->debug_mode == true)
+            if (isset($_SESSION[$domain]['other_auth']) && !empty($_SESSION[$domain]['other_auth'])) {
+                $lib->sendAjax($_SESSION[$domain]['other_auth']);
+            }
+
+
+        $row = $this->getModuleRow($package->module_row);
+        $api = $this->api($row);
+
+
+        //$cert_type = $this->isComodoCert($api, $package) ? '1' : '2';
+
+        //$response = array('webservers' => array());
+
+        try {
+
+            $response = $this->parseResponse($api->getDomainAlternative($csr_data), $row, true);
+            //$response = $api->getDomainAlternative($CSR);
+        } catch (Exception $e) {
+            // Error, invalid authorization
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
+            //$lib->sendAjax($e." error ->".var_dump($response),false);
+        }
+
+
+        //Check for errors
+        if ($lib->getRequest($response, 'error') == true) {
+            $description = $lib->getRequest($response, 'description');
+            $lib->sendAjax($description, false);
+        }
+
+        //@todo put this in a proper cache
+        if ($this->debug_mode == true)
+            $_SESSION[$domain]['other_auth'] = $response;
+
+        $lib->sendAjax($response);
+        //$lib->sendAjax(var_dump($response));
+
+    }
+
+    /**
+     * @param $request                  This contains the GET & POST requests as an Array
+     * @param $dataRequest              This contains the package & service requests as an Array
+     * @throws GoGetSSLAuthException
+     * @return                          JSON of email Authorisation
+     */
+
+    public function emailAuthorisation($request, $dataRequest)
+    {
+        //parse our request
+        $postRequest = $request['postRequest'];
+        $getRequest = $request['getRequest'];
+
+        //get service & packages
+        $package = $dataRequest['package'];
+        $service = $dataRequest['service'];
+
+        $service_fields = $this->serviceFieldsToObject($service->fields);
+        $domain = $service_fields->gogetssl_fqdn;
+
+        $lib = $this->getLib();
+
+        //@todo only want to store email_auth during swapping between CSR Generation & domain renew will save as services
+        //@disabled for now due to https://github.com/lukesUbuntu/gogetsslv2/issues/1
+
+        if (isset($_SESSION[$domain]['email_auth']) && !empty($_SESSION[$domain]['email_auth'])) {
+            $lib->sendAjax($_SESSION[$domain]['email_auth']);
+        }
+
+        if (empty($domain)) $lib->sendAjax("domain failed empty", false);
+
+
+        $row = $this->getModuleRow($package->module_row);
+        $api = $this->api($row);
+
+
+        $this->log($row->meta->api_username . "|ssl-domain-emails", serialize($domain), "input", true);
+
+        $gogetssl_approver_emails = array();
+        try {
+
+            $response = $api->getDomainEmails($domain);
+
+            $gogetssl_approver_emails = $this->parseResponse($response, $row);
+        } catch (Exception $e) {
+            // Error, invalid authorization
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
+        }
+        //error checking response
+        if ($this->Input->errors())
+            $lib->sendAjax($response, false);
+
+        $emails = array();
+        if ($this->isComodoCert($api, $package) && isset($gogetssl_approver_emails['ComodoApprovalEmails']))
+            $emails = $gogetssl_approver_emails['ComodoApprovalEmails'];
+        elseif (isset($gogetssl_approver_emails['GeotrustApprovalEmails']))
+            $emails = $gogetssl_approver_emails['GeotrustApprovalEmails'];
+
+        $formatted_emails = array();
+        foreach ($emails as $email)
+            $formatted_emails[$email] = $email;
+
+        $_SESSION[$domain]['email_auth'] = $formatted_emails;
+
+        $lib->sendAjax($formatted_emails);
+    }
+
+    /**
+     * @name  generateCSR               Generates a CSR request and passes back as json
+     * @param $request                  This contains the GET & POST requests as an Array
+     * @param $dataRequest              This contains the package & service requests as an Array
+     * @throws GoGetSSLAuthException
+     * @return                          JSON of email Authorisation
+     */
+    public function generateCSR($request, $dataRequest)
+    {
+
+        //load our helpers
+        Loader::loadHelpers($this, array("Html"));
+        //load models
+        Loader::loadModels($this, array("Services"));
+        //load our lib
+        $lib = $this->getLib();
+
+        //pass our requests
+        $postRequest = $request['postRequest'];
+        $getRequest = $request['getRequest'];
+
+        //set our packages and services
+        $package = $dataRequest['package'];
+        $service = $dataRequest['service'];
+
+        //get service_fields
+        $service_fields = $this->serviceFieldsToObject($service->fields);
+
+
+        $requires = array(
+            "gogetssl_csr_fqdn",
+            "gogetssl_csr_country",
+            "gogetssl_csr_state",
+            "gogetssl_csr_locality",
+            "gogetssl_csr_organization",
+            "gogetssl_csr_organization_unit",
+            "gogetssl_csr_email"
+        );
+        $cert_details = $lib->getRequests($getRequest, $requires);
+
+
+        //if any of our fields failed check if they are manditory fields
+        /*
+        if ($cert_details['failed'] != false){
+            $response['fields'] = $cert_details['failed'];
+            $response['message'] = "missing or empty fields";
+            $lib->sendAjax($response,false);
+        }
+        */
+
+
+        //we can use generate ourselfs or use API
+        $row = $this->getModuleRow($package->module_row);
+        $api = $this->api($row);
+
+        //@issue gossl sandbox does not support SHA2 for some reason
+        $SHA = ($row->meta->sandbox == "true" ? "SHA1" : "SHA2");
+
+
+        $data = array(
+            "csr_commonname" => $cert_details['gogetssl_csr_fqdn'],
+            "csr_organization" => $lib->ifSet($cert_details['gogetssl_csr_organization'], "NA"),
+            "csr_department" => $lib->ifSet($cert_details['gogetssl_csr_organization_unit'], "NA"),
+            "csr_city" => $lib->ifSet($cert_details['gogetssl_csr_locality'], "NA"),
+            "csr_state" => $lib->ifSet($cert_details['gogetssl_csr_state'], "NA"),
+            "csr_country" => $lib->ifSet($cert_details['gogetssl_csr_country'], "NA"),
+            "csr_email" => $cert_details['gogetssl_csr_email'],
+            "signature_hash" => "SHA1"
+        );
+
+        //generate CSR
+        $response = $api->generateCSR($data);
+
+        //pass hash used
+        $response['hash'] = $SHA;
+
+
+        //catch the error as we may have already generated CSR with gogetssl
+        if (isset($response['error']) && $response['error'] == true) {
+            //if we have already generated CSR details we will retrieve this
+            if ($response['message'] == 'CSR Exist') {
+                if (preg_match('/CSR ID is: .(\d+)./', $response['description'], $matches)) {
+                    $csr_id = $matches[1];
+                    $response = $api->getCSR($csr_id, $cert_details['gogetssl_csr_fqdn']);
+                }
+            } else {
+                //we have a different error lets pass back
+                $lib->sendAjax($response, false);
+            }
+        }
+        //we will end up here with a valid response->csr_code
+
+        //Update our gogetssl_csr records.
+        $csr_update = array("gogetssl_csr" => $this->Html->ifSet($response['csr_code']));
+
+        //update our csr code
+        $service_fields_update = $this->ourServiceFields(
+            $lib->serviceFieldMerge($service_fields, $csr_update),
+            $service_fields->gogetssl_orderid
+        );
+        $this->Services->setFields($service->id, $service_fields_update);
+
+        $lib->sendAjax($response);
+
+    }
+
     //****************************************AJAX CALLS BELOW HERE*********************************************//
 
     /**
@@ -2222,131 +2392,41 @@ class Gogetsslv2 extends Module
      * }
      */
 
-    /**
-     * @param $request                  This contains the GET & POST requests as an Array
-     * @param $dataRequest              This contains the package & service requests as an Array
-     * @throws GoGetSSLAuthException
-     * @return                          JSON of other alternative authorisation methods
-     */
-    public function authAlternatives($request,$dataRequest){
-        //parse our request
-        $postRequest    = $request['postRequest'];
-        $getRequest     = $request['getRequest'];
+    private function clearDebug($service_fields, $key)
+    {
+        $domain = trim($service_fields->gogetssl_fqdn);
+        $key = trim($key);
+        if (empty($key)) die("key empty debug_mode");
 
-        $lib = $this->getLib();
-
-        //get CSR request
-        $csr_data = $lib->getRequest($getRequest,'csr_data');
-
-        
-        if(!$csr_data)
-        $lib->sendAjax("Failed to get CSR data",false);
-
-
-        //get service & packages
-        $package        = $dataRequest['package'];
-        $service        = $dataRequest['service'];
-
-        $service_fields = $this->serviceFieldsToObject($service->fields);
-        $domain = $service_fields->gogetssl_fqdn;
-
-        if ($this->debug_mode == true)
-            if (isset($_SESSION[$domain]['other_auth']) && !empty($_SESSION[$domain]['other_auth'])){
-                $lib->sendAjax($_SESSION[$domain]['other_auth']);
-            }
-
-
-
-
-
-        $row = $this->getModuleRow($package->module_row);
-        $api = $this->api($row);
-
-
-
-        //$cert_type = $this->isComodoCert($api, $package) ? '1' : '2';
-
-        //$response = array('webservers' => array());
-
-        try {
-
-            $response = $this->parseResponse($api->getDomainAlternative($csr_data), $row , true);
-            //$response = $api->getDomainAlternative($CSR);
-        } catch (Exception $e) {
-            // Error, invalid authorization
-            $this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
-            //$lib->sendAjax($e." error ->".var_dump($response),false);
-        }
-
-
-        //Check for errors
-         if ($lib->getRequest($response,'error') == true){
-             $description = $lib->getRequest($response,'description');
-             $lib->sendAjax($description,false);
-         }
-
-        //@todo put this in a proper cache
-        if ($this->debug_mode == true)
-        $_SESSION[$domain]['other_auth'] = $response;
-
-        $lib->sendAjax($response);
-        //$lib->sendAjax(var_dump($response));
-
+        unset($_SESSION[$key][$domain]);
     }
+
     /**
-     * @param $request                  This contains the GET & POST requests as an Array
-     * @param $dataRequest              This contains the package & service requests as an Array
-     * @throws GoGetSSLAuthException
-     * @return                          JSON of email Authorisation
+     * Returns array of valid approver E-Mails for domain
+     *
+     * @param GoGetSslApi $api the API to use
+     * @param stdClass $package The package
+     * @param string $domain The domain
+     * @return array E-Mails that are valid approvers for the domain
      */
-
-    public function emailAuthorisation($request,$dataRequest){
-        //parse our request
-        $postRequest    = $request['postRequest'];
-        $getRequest     = $request['getRequest'];
-
-        //get service & packages
-        $package        = $dataRequest['package'];
-        $service        = $dataRequest['service'];
-
-        $service_fields = $this->serviceFieldsToObject($service->fields);
-        $domain = $service_fields->gogetssl_fqdn;
-
-        $lib = $this->getLib();
-
-        //@todo only want to store email_auth during swapping between CSR Generation & domain renew will save as services
-        //@disabled for now due to https://github.com/lukesUbuntu/gogetsslv2/issues/1
-
-        if (isset($_SESSION[$domain]['email_auth']) && !empty($_SESSION[$domain]['email_auth'])){
-            $lib->sendAjax($_SESSION[$domain]['email_auth']);
-        }
-
-        if (empty($domain))$lib->sendAjax("domain failed empty",false);
-
-
+    private function getApproverEmails($api, $package, $domain)
+    {
+        if (empty($domain))
+            return array();
 
         $row = $this->getModuleRow($package->module_row);
-        $api = $this->api($row);
-
-
         $this->log($row->meta->api_username . "|ssl-domain-emails", serialize($domain), "input", true);
 
         $gogetssl_approver_emails = array();
         try {
-
-            $response = $api->getDomainEmails($domain);
-
-            $gogetssl_approver_emails = $this->parseResponse($response, $row);
+            $gogetssl_approver_emails = $this->parseResponse($api->getDomainEmails($domain), $row);
         } catch (Exception $e) {
             // Error, invalid authorization
             $this->Input->setErrors(array('api' => array('internal' => Language::_("GoGetSSLv2.!error.api.internal", true))));
         }
-        //error checking response
-        if ($this->Input->errors())
-            $lib->sendAjax($response,false);
 
         $emails = array();
-        if($this->isComodoCert($api, $package) && isset($gogetssl_approver_emails['ComodoApprovalEmails']))
+        if ($this->isComodoCert($api, $package) && isset($gogetssl_approver_emails['ComodoApprovalEmails']))
             $emails = $gogetssl_approver_emails['ComodoApprovalEmails'];
         elseif (isset($gogetssl_approver_emails['GeotrustApprovalEmails']))
             $emails = $gogetssl_approver_emails['GeotrustApprovalEmails'];
@@ -2355,115 +2435,12 @@ class Gogetsslv2 extends Module
         foreach ($emails as $email)
             $formatted_emails[$email] = $email;
 
-        $_SESSION[$domain]['email_auth'] = $formatted_emails;
-
-        $lib->sendAjax($formatted_emails);
+        return $formatted_emails;
     }
 
-    /**
-     * @name  generateCSR               Generates a CSR request and passes back as json
-     * @param $request                  This contains the GET & POST requests as an Array
-     * @param $dataRequest              This contains the package & service requests as an Array
-     * @throws GoGetSSLAuthException
-     * @return                          JSON of email Authorisation
-     */
-    public function generateCSR($request,$dataRequest){
-
-        //load our helpers
-        Loader::loadHelpers($this, array("Html"));
-        //load models
-        Loader::loadModels($this, array("Services"));
-        //load our lib
-        $lib = $this->getLib();
-
-        //pass our requests
-        $postRequest    = $request['postRequest'];
-        $getRequest     = $request['getRequest'];
-
-        //set our packages and services
-        $package        = $dataRequest['package'];
-        $service        = $dataRequest['service'];
-
-        //get service_fields
-        $service_fields = $this->serviceFieldsToObject($service->fields);
-
-
-        $requires = array(
-            "gogetssl_csr_fqdn",
-            "gogetssl_csr_country",
-            "gogetssl_csr_state",
-            "gogetssl_csr_locality",
-            "gogetssl_csr_organization",
-            "gogetssl_csr_organization_unit",
-            "gogetssl_csr_email"
-        );
-        $cert_details = $lib->getRequests($getRequest,$requires);
-
-
-        //if any of our fields failed check if they are manditory fields
-        /*
-        if ($cert_details['failed'] != false){
-            $response['fields'] = $cert_details['failed'];
-            $response['message'] = "missing or empty fields";
-            $lib->sendAjax($response,false);
-        }
-        */
-
-
-
-        //we can use generate ourselfs or use API
-        $row = $this->getModuleRow($package->module_row);
-        $api = $this->api($row);
-
-        //@issue gossl sandbox does not support SHA2 for some reason
-        $SHA  = ($row->meta->sandbox == "true" ? "SHA1" : "SHA2");
-
-
-        $data = array(
-            "csr_commonname"            => $cert_details['gogetssl_csr_fqdn'],
-            "csr_organization"          => $lib->ifSet($cert_details['gogetssl_csr_organization'],        "NA"),
-            "csr_department"            => $lib->ifSet($cert_details['gogetssl_csr_organization_unit'],   "NA"),
-            "csr_city"                  => $lib->ifSet($cert_details['gogetssl_csr_locality'],            "NA"),
-            "csr_state"                 => $lib->ifSet($cert_details['gogetssl_csr_state'],               "NA"),
-            "csr_country"               => $lib->ifSet($cert_details['gogetssl_csr_country'],             "NA"),
-            "csr_email"                 => $cert_details['gogetssl_csr_email'],
-            "signature_hash"            => "SHA1"
-        );
-
-        //generate CSR
-        $response = $api->generateCSR($data);
-
-        //pass hash used
-        $response['hash'] = $SHA;
-
-
-        //catch the error as we may have already generated CSR with gogetssl
-        if  (isset($response['error']) && $response['error']== true){
-            //if we have already generated CSR details we will retrieve this
-            if ($response['message'] == 'CSR Exist'){
-                if(preg_match('/CSR ID is: .(\d+)./',$response['description'], $matches)){
-                    $csr_id = $matches[1];
-                    $response = $api->getCSR($csr_id,$cert_details['gogetssl_csr_fqdn']);
-                }
-            }else{
-                //we have a different error lets pass back
-                $lib->sendAjax($response,false);
-            }
-        }
-        //we will end up here with a valid response->csr_code
-
-        //Update our gogetssl_csr records.
-        $csr_update = array("gogetssl_csr" => $this->Html->ifSet($response['csr_code']));
-
-        //update our csr code
-        $service_fields_update = $this->ourServiceFields(
-            $lib->serviceFieldMerge($service_fields,$csr_update) ,
-            $service_fields->gogetssl_orderid
-        );
-        $this->Services->setFields($service->id, $service_fields_update);
-
-        $lib->sendAjax($response);
-
+    private function getJSPath()
+    {
+        return DS . "views" . DS . "default" . DS . "js" . DS;
     }
 
 
