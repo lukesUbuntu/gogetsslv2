@@ -117,7 +117,7 @@
     function installCSR(){
         //we are going to pass the csr data to our install tab
         if (csr_data == false || !/BEGIN CERTIFICATE REQUEST/.test(csr_data.csr_code)){
-            alert("Can't install didn't generate CSR")
+            alert("Can't install didn't generate CSR");
             return;
         }
 
@@ -133,13 +133,13 @@
         //$ajax_query.csr =    'teting';
         
         
-        $ajax_query.gogetssl_csr_fqdn   = $("#gogetssl_csr_fqdn").val()
-        $ajax_query.gogetssl_csr_country  = $("#gogetssl_csr_country").val()
-        $ajax_query.gogetssl_csr_state = $("#gogetssl_csr_state").val()
-        $ajax_query.gogetssl_csr_locality = $("#gogetssl_csr_locality").val()
-        $ajax_query.gogetssl_csr_organization = $("#gogetssl_csr_organization").val()
-        $ajax_query.gogetssl_csr_organization_unit = $("#gogetssl_csr_organization_unit").val()
-        $ajax_query.gogetssl_csr_email = $("#gogetssl_csr_email").val()
+        $ajax_query.gogetssl_csr_fqdn   = $("#gogetssl_csr_fqdn").val();
+        $ajax_query.gogetssl_csr_country  = $("#gogetssl_csr_country").val();
+        $ajax_query.gogetssl_csr_state = $("#gogetssl_csr_state").val();
+        $ajax_query.gogetssl_csr_locality = $("#gogetssl_csr_locality").val();
+        $ajax_query.gogetssl_csr_organization = $("#gogetssl_csr_organization").val();
+        $ajax_query.gogetssl_csr_organization_unit = $("#gogetssl_csr_organization_unit").val();
+        $ajax_query.gogetssl_csr_email = $("#gogetssl_csr_email").val();
 
         $.ajax({
             method: 'GET',
@@ -148,7 +148,7 @@
             dataType: "jsonp",
             cache : true,
             success: function (response) {
-                console.log("response",response)
+                console.log("response",response);
                 if (response.success == true){
                     csr_data = response.data;
                     console.log("csr_data",csr_data);
@@ -172,8 +172,8 @@
                     $("#code_window").show();
 
                 }else{
-                    console.log("response.data.validation",typeof response.data)
-                    console.log("missing fields",response.data.fields)
+                    console.log("response.data.validation",typeof response.data);
+                    console.log("missing fields",response.data.fields);
                     alert("Failed : "+ response.data.message);
                 }
 

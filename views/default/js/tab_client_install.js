@@ -7,7 +7,7 @@ var gogetssl_other_methods = {};
 
     var loaded = {
         approval_emails : true
-    }
+    };
 
 	$(document).ready(function(){
         //if our $post_back is set lets put the data back into elements
@@ -39,7 +39,7 @@ var gogetssl_other_methods = {};
             var last_step = 1;
             $(".steps").click(function(){
                 //get the step we clicked
-                var step = $(this).attr("step")
+                var step = $(this).attr("step");
                 var step_no = $(this).attr("step").match(/\d+/);
 
                 $(".steps").removeClass("btn-success").addClass("btn-disabled");
@@ -138,7 +138,7 @@ var gogetssl_other_methods = {};
 
         //pre-check we haven't processed already
         if ($("#http_method").hasClass('loaded')){
-            $("#http_method").show()
+            $("#http_method").show();
             return;
         }
 
@@ -250,7 +250,7 @@ var gogetssl_other_methods = {};
                     $("#getAlternatives").remove();
 
                 }else{
-                    console.log("getOtherApprovals : ajax error",typeof response)
+                    console.log("getOtherApprovals : ajax error",typeof response);
                     alert("Failed Reason : "+ response.data);
                 }
 

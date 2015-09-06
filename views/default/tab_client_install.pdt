@@ -251,7 +251,7 @@
             '_csrf_token' 	: 	'<?php echo $this->Form->getCsrfToken();?>'
         };
         //Pass back any filtered POST back to our scripts
-        var $post_back =  <?php echo $post_back; ?>
+        var $post_back =;  <?php echo $post_back; ?>
     </script>
     <!--Include our javascript file !-->
     <script type='text/javascript' src='<?php echo $this->Html->safe($this->view_dir . $js_script);?>'></script>

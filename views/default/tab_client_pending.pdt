@@ -96,17 +96,17 @@
     if (typeof $approver_method == "object")
         processPage();
     else
-        console.log("failed $approver_method", $approver_method)
+        console.log("failed $approver_method", $approver_method);
 
 
     function processPage() {
 
         switch (Object.keys($approver_method)[0]) {
             case "http" :
-                console.log("$approver_method", $approver_method.http)
+                console.log("$approver_method", $approver_method.http);
                 $("#http_method_filename").text($approver_method.http.filename);
                 $("#http_method_content").text($approver_method.http.content);
-                $("#http_method_link").text($approver_method.http.link).attr('href', $approver_method.http.link)
+                $("#http_method_link").text($approver_method.http.link).attr('href', $approver_method.http.link);
                 $("#http_methods_download").attr(
                     {
                         'download': $approver_method.http.filename,
