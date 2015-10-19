@@ -45,17 +45,16 @@ version 1.0.9
 * When submitting cert for install shows loading screen
 
 
-####### SCREENSHOTS #######
+####### SOME SCREENSHOTS #######
 Order Page
-* http://prntscr.com/66sygk
-* http://prntscr.com/66svms
+* ![Order page](http://i.imgur.com/bkCVxq3.png)
 
 DNS Install Method
-* http://prntscr.com/69x9az
+* ![DNS Install](http://i.imgur.com/LnaezDW.png)
 
 HTTP Install Method
-* http://prntscr.com/69xcxf
+* ![DNS Install](http://i.imgur.com/CFBKigx.png)
 
 Generating CSR
-* http://prntscr.com/6mqyuc
-* http://prntscr.com/6mqz40
+* ![Generating CSR](http://i.imgur.com/HQ4rOM1.png)
+* ![Generating CSR](http://i.imgur.com/c5Kc5Gp.png)
